@@ -17,12 +17,12 @@ pip install git+https://github.com/dbouget/neuro_dicom_parser.git
 
 If the input is a folder for a single patient
 ```
-neurodicomparser -i "/path/to/single_input_folder" -o "/path/to/destination_folder" (-v debug)
+neurodicomparser -s "/path/to/single_input_folder" -o "/path/to/destination_folder" (-v debug)
 ```
 
 If the input is a folder for multiple patients
 ```
-neurodicomparser -f "/path/to/cohort_input_folder" -o "/path/to/destination_folder" (-v debug)
+neurodicomparser -c "/path/to/cohort_input_folder" -o "/path/to/destination_folder" (-v debug)
 ```
 
 ### [Python module](https://github.com/dbouget/neuro_dicom_parser#python-module)
