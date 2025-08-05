@@ -17,17 +17,17 @@ def main(argv):
     try:
         logging.basicConfig(format="%(asctime)s ; %(name)s ; %(levelname)s ; %(message)s", datefmt='%d/%m/%Y %H.%M')
         logging.getLogger().setLevel(logging.WARNING)
-        opts, args = getopt.getopt(argv, "h:i:f:o:v:", ["input_single=", "input_folder=", "output_folder=", "Verbose="])
+        opts, args = getopt.getopt(argv, "h:s:c:o:v:", ["input_single=", "input_cohort=", "output_folder=", "Verbose="])
     except getopt.GetoptError:
-        print('usage: main.py -i <src_single_folder> -f <src_cohort_folder> -o <dest_folder> (--Verbose <mode>)')
+        print('usage: main.py -c <src_cohort_folder> -o <dest_folder> (--Verbose <mode>)')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('main.py -i <src_single_folder> -f <src_cohort_folder> -o <dest_folder> (--Verbose <mode>)')
+            print('main.py -c <src_cohort_folder> -o <dest_folder> (--Verbose <mode>)')
             sys.exit()
-        elif opt in ("-i", "--input_single"):
+        elif opt in ("-s", "--input_single"):
             single_folder = arg
-        elif opt in ("-f", "--input_folder"):
+        elif opt in ("-c", "--input_cohort"):
             cohort_folder = arg
         elif opt in ("-o", "--output_folder"):
             dest_folder = arg
@@ -42,7 +42,7 @@ def main(argv):
                 logging.getLogger().setLevel(logging.ERROR)
 
     if single_folder is not None and cohort_folder is not None:
-        print('usage: either use -i or -f options, not both!')
+        print('usage: either use -s or -c options, not both!')
         sys.exit()
     try:
         ensure_models_present()

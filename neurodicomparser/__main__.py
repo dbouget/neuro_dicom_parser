@@ -3,7 +3,9 @@ import os
 import sys
 import traceback
 import logging
-from raidionicsrads.compute import run_rads
+from neurodicomparser.Utils.ensure_dcm2nii_present import ensure_dcm2nii_present
+from neurodicomparser.Utils.ensure_models_present import ensure_models_present
+from neurodicomparser.run import run_cohort, run_single
 
 
 def path(string):
@@ -15,10 +17,13 @@ def path(string):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('input_single', metavar='input_single', type=path, help='Path to the single input folder')
-    parser.add_argument('input_folder', metavar='input_folder', type=path, help='Path to the cohort input folder')
-    parser.add_argument('output_folder', metavar='output_folder', type=path, help='Path to the output folder')
-    parser.add_argument('--verbose', help="To specify the level of verbose, Default: warning", type=str,
+    parser.add_argument('-s', '--input_single', metavar='IN_DIR', type=path,
+                        help='Path to the single input folder', default=None)
+    parser.add_argument('-c', '--input_cohort', metavar='IN_DIR', type=path,
+                        help='Path to the cohort input folder', default=None)
+    parser.add_argument('-o', '--output_folder', metavar='OUT_DIR', type=path,
+                        help='Path to the output folder', default=None)
+    parser.add_argument('-v', '--verbose', help="To specify the level of verbose, Default: warning", type=str,
                         choices=['debug', 'info', 'warning', 'error'], default='warning')
 
     argsin = sys.argv[1:]
@@ -37,8 +42,20 @@ def main():
     elif args.verbose == 'error':
         logging.getLogger().setLevel(logging.ERROR)
 
+    if input_single_fn is not None and input_cohort_fn is not None:
+        print('usage: either use -s (--input_single) or -c (--input_cohort) options, not both!')
+        sys.exit()
     try:
-        run_rads(config_filename=config_filename)
+        ensure_models_present()
+        ensure_dcm2nii_present()
+    except Exception as e:
+        logging.error(f'Downloading the mandatory resources failed with: {e}')
+
+    try:
+        if input_single_fn is not None:
+            run_single(input_folder=input_single_fn, output_folder=output_fn)
+        else:
+            run_cohort(input_folder=input_cohort_fn, output_folder=output_fn)
     except Exception as e:
         logging.error('{}'.format(traceback.format_exc()))
 
