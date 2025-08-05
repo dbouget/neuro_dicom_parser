@@ -1,0 +1,40 @@
+name: Build Universal Wheel
+
+on:
+  push:
+    branches: [ master,update ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            TARGET: ubuntu
+            CMD_BUILD: python -m build --wheel
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+            pip install --upgrade pip
+            pip install build
+
+      - name: Built wheel for ${{matrix.TARGET}}
+        run: ${{matrix.CMD_BUILD}}
+
+      - name: Upload Python wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: Python wheel
+          path: ${{github.workspace}}/dist/neurodicomparser-*.whl
+          if-no-files-found: error

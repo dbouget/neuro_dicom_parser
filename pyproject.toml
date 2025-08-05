@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "cibuildwheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neurodicomparser"
+version = "1.0.0"
+description = "Tool for automatically converting the content of a DICOM folder to nifti, with MRI sequence classification"
+readme = "README.md"
+license = { text = "BSD-2-Clause" }
+requires-python = ">=3.9"
+authors = [{ name = "David Bouget", email = "david.bouget@sintef.no" }]
+
+dependencies = [
+  "raidionicsrads",
+]
+
+[project.scripts]
+neurodicomparser = "neurodicomparser.__main__:main"
+
+[tool.setuptools.packages.find]
+include = [
+  "neurodicomparser",
+  "neurodicomparser.Utils",
+  "neurodicomparser.PreProcessing",
+]
+
+[tool.black]
+line-length=120
+
+[tool.flake8]
+max-line-length = 120
+ignore = ["E203"]
