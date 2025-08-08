@@ -41,9 +41,9 @@ neurodicomparser -i "/path/to/cohort_folder" -c cohort_patient -s manual -o "/pa
 ### [Python module](https://github.com/dbouget/neuro_dicom_parser#python-module)
 
 ```
-from neurodicomparser.run import run_cohort, run_single
-run_single(input_folder="/path/to/single_input_folder", output_folder="/path/to/destination_folder")
-run_cohort(input_folder="/path/to/cohort_input_folder", output_folder="/path/to/destination_folder")
+from neurodicomparser.run import run_sectra_cdmedia, run_manual_structure
+run_sectra_cdmedia(input_folder="/path/to/single_input_folder", input_category=single_patient, output_folder="/path/to/destination_folder")
+run_manual_structure(input_folder="/path/to/cohort_input_folder", input_category=cohort_patient, output_folder="/path/to/destination_folder")
 ```
 </details>
 
