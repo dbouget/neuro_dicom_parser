@@ -37,7 +37,6 @@ If the input is a folder for multiple patients with manual structure
 ```
 neurodicomparser -i "/path/to/cohort_folder" -c cohort_patient -s manual -o "/path/to/destination_folder" (-v debug)
 ```
-</details>
 
 ### [Python module](https://github.com/dbouget/neuro_dicom_parser#python-module)
 
@@ -46,16 +45,19 @@ from neurodicomparser.run import run_cohort, run_single
 run_single(input_folder="/path/to/single_input_folder", output_folder="/path/to/destination_folder")
 run_cohort(input_folder="/path/to/cohort_input_folder", output_folder="/path/to/destination_folder")
 ```
+</details>
 
 <details>
 <summary>
 
 ## [Expected folder structure](https://github.com/dbouget/neuro_dicom_parser#expected-folder-structure)
 </summary>
+For now, only two folder structures are supported: either the raw SECTRA CD Media, or a custom manually-defined
+structure. More options might be available in the future depending on use-cases.
 
-### [Sectra CD Media](https://github.com/dbouget/neuro_dicom_parser#sectra-cd-media)
-When working with DICOM folders extracted from the PACS system as CD media, the following structure is expected on disk.
-The execution line would look like:  
+### [SECTRA CD Media](https://github.com/dbouget/neuro_dicom_parser#sectra-cd-media)
+When working with DICOM folders extracted from the PACS system as SECTRA CD Media, the following structure is expected
+on disk.
 
     └── path/to/sectra-cohort/
         └── patient1/
@@ -77,11 +79,6 @@ The execution line would look like:
 
 ### [Manual](https://github.com/dbouget/neuro_dicom_parser#manual)
 When working with DICOM folders organized manually, the following structure is expected on disk.
-The execution line would look like:  
-
-```
-neurodicomparser -i "/path/to/input_folder" -c single_patient -s manual -o "/path/to/destination_folder" (-v debug)
-```
 
     └── path/to/manual-cohort/
         └── patient1/
