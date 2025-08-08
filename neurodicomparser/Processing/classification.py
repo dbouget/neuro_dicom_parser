@@ -2,10 +2,12 @@ import shutil
 import os
 import traceback
 import json
+import glob
 import subprocess
 import configparser
 import pandas as pd
 import numpy as np
+import logging
 from raidionicsrads.compute import run_rads
 
 
@@ -25,9 +27,11 @@ def compute_classification(input_filename: str, target_name: str, override: bool
         print(f"No classification model for {target_name}")
         return
 
-    dest_classification_file = input_filename.replace('.nii.gz', '_sequence_classification_results.csv')
-    # The cases for a recompute are: (i) override, (ii) new database entry, (iii) filepath is None, (iv) filepath cannot be found on disk.
-    if override or not os.path.exists(dest_classification_file):
+    classification_files = [os.path.basename(x).replace('_sequence_classification_results.csv', '') for x in glob.glob(os.path.join(os.path.dirname(input_filename), "*_sequence_classification_results.csv"), recursive=False)]
+    classification_exists = True in [x in os.path.basename(input_filename) for x in classification_files]
+
+    if override or not classification_exists:
+        dest_classification_file = input_filename.replace('.nii.gz', '_sequence_classification_results.csv')
         tmp_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tmp')
         if os.path.exists(tmp_folder):
             shutil.rmtree(tmp_folder)
@@ -92,6 +96,8 @@ def compute_classification(input_filename: str, target_name: str, override: bool
         shutil.move(src=input_filename, dst=output_image_filename)
         shutil.move(src=input_filename.replace('.nii.gz', '_metadata.csv'), dst=output_image_filename.replace('.nii.gz', '_metadata.csv'))
         shutil.copyfile(src=results_filename, dst=dest_classification_file)
+    else:
+        logging.info(f"Skipping sequence classification for {input_filename}")
 
 def create_classification_pipeline(model_name: str) -> dict:
     """
