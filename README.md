@@ -23,6 +23,7 @@ descriptions of folder structures for each use-case are provided below. The vari
 * -c (input_category): granularity level of the input folder content within [cohort_patient, single_patient, single_timepoint, single_image]
 * -s (input_structure): indication of the way the DICOM folders are structured on disk, to select from [sectra_cdmedia, manual]
 * -o (output_folder): path to the folder where the results will be stored
+* -m (conversion_method): method to use for the actual DICOM to Nifti conversion, to select from [dcm2niix, sitk]
 * -v (verbose): amount of details to be printed in the console, to select from [debug, info, warning, error]
 * -x (override): if content already existing should be removed and produced again
 
