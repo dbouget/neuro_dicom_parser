@@ -7,7 +7,7 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 RUN apt-get update -y
 RUN apt-get upgrade -y
 RUN apt-get -y install sudo
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y git libopenjp2-7
 
 WORKDIR /workspace
 
@@ -18,7 +18,7 @@ RUN pip3 install -e neuro_dicom_parser
 RUN mkdir /workspace/resources
 
 # Download and place resources
-RUN python /workspace/neuro_dicom_parser/Utils/ensure_dcm2nii_present.py
-RUN python /workspace/neuro_dicom_parser/Utils/ensure_models_present.py
+RUN python -c "from neurodicomparser.Utils.ensure_dcm2nii_present import ensure_dcm2nii_present; ensure_dcm2nii_present()"
+RUN python -c "from neurodicomparser.Utils.ensure_models_present import ensure_models_present; ensure_models_present()"
 
 ENTRYPOINT ["python3","/workspace/neuro_dicom_parser/main.py"]

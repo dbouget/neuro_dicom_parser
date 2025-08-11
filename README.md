@@ -46,6 +46,13 @@ from neurodicomparser.run import run_sectra_cdmedia, run_manual_structure
 run_sectra_cdmedia(input_folder="/path/to/single_input_folder", input_category=single_patient, output_folder="/path/to/destination_folder")
 run_manual_structure(input_folder="/path/to/cohort_input_folder", input_category=cohort_patient, output_folder="/path/to/destination_folder")
 ```
+
+### [Docker CLI](https://github.com/dbouget/neuro_dicom_parser#docker-cli)
+For launching the Docker image as a CLI, run the following, after replacing all <variables> with actual paths matching the files on your machine:  
+
+```
+docker run -v </path/to/data>:/workspace/resources -t -i --network=host --ipc=host --user $(id -u) dbouget/neurodicomparser:v1.0-py310-cpu -c /workspace/resources/<patent1> -c single_patient -s manual -o /workspace/resources/<output_dir_name> -m dcm2niix -v debug
+```
 </details>
 
 <details>
