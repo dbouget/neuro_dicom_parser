@@ -18,12 +18,14 @@ def main(argv):
     input_structure = None
     input_category = None
     dest_folder = None
+    conversion_method = "dcm2niix"
     override = False
     try:
         logging.basicConfig(format="%(asctime)s ; %(name)s ; %(levelname)s ; %(message)s", datefmt='%d/%m/%Y %H.%M')
         logging.getLogger().setLevel(logging.WARNING)
-        opts, args = getopt.getopt(argv, "h:i:c:s:o:v:x", ["input_folder=", "input_category",
-                                                        "input_structure=", "output_folder=", "Verbose=", "override"])
+        opts, args = getopt.getopt(argv, "h:i:c:s:o:m:v:x", ["input_folder=", "input_category",
+                                                             "input_structure=", "output_folder=",
+                                                             "conversion_method", "Verbose=", "override"])
     except getopt.GetoptError:
         print('usage: main.py -i <src_cohort_folder> -c <category> -s <folder_structure> -o <dest_folder> (--Verbose <mode>)')
         sys.exit(2)
@@ -39,6 +41,8 @@ def main(argv):
             input_structure = arg
         elif opt in ("-o", "--output_folder"):
             dest_folder = arg
+        elif opt in ("-m", "--conversion_method"):
+            conversion_method = arg
         elif opt in ("-v", "--Verbose"):
             if arg.lower() == 'debug':
                 logging.getLogger().setLevel(logging.DEBUG)
@@ -54,6 +58,9 @@ def main(argv):
     if input_folder is None or not os.path.exists(input_folder):
         logging.error('The provided input folder does not exist!')
         sys.exit()
+    if conversion_method not in ["dcm2niix", "sitk"]:
+        logging.warning(f"Conversion method {conversion_method} is not supported. Setting to default => dcm2niix")
+        conversion_method = "dcm2niix"
     try:
         ensure_models_present()
         ensure_dcm2nii_present()
@@ -62,10 +69,10 @@ def main(argv):
     try:
         if input_structure == "sectra_cdmedia":
             run_sectra_cdmedia(input_folder=input_folder, input_category=input_category, output_folder=dest_folder,
-                               override=override)
+                               conversion_method=conversion_method, override=override)
         elif input_structure == "manual":
             run_manual_structure(input_folder=input_folder, input_category=input_category, output_folder=dest_folder,
-                                 override=override)
+                                 conversion_method=conversion_method, override=override)
         else:
             logging.error('usage: the input_structure option (-s) must be selected from [sectra_cdmedia, manual]')
             sys.exit()

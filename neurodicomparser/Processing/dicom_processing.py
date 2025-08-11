@@ -6,6 +6,7 @@ import subprocess
 import traceback
 import logging
 import pandas as pd
+from ..Utils.io_utils import safename_formatting
 
 
 def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder: str = None,
@@ -289,7 +290,8 @@ def convert_single_dicom_sequence(input_folder: str, output_folder: str = None, 
         elif '0008|0008' in existing_dicom_keys:
             image_dname = reader.GetMetaData(0, '0008|0008').strip().replace('\\', '-').replace('.', '-').replace('/', '-')
 
-        image_name =  image_dname + '.nii.gz'
+        clean_image_dname = safename_formatting(image_dname)
+        image_name =  clean_image_dname + '.nii.gz'
         dump_image_path = os.path.join(output_folder, image_name)
         os.makedirs(os.path.dirname(dump_image_path), exist_ok=True)
         if not os.path.isdir(os.path.dirname(dump_image_path)):

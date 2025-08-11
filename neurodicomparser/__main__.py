@@ -28,6 +28,9 @@ def main():
                         choices=['sectra_cdmedia', 'manual'], default='sectra_cdmedia')
     parser.add_argument('-o', '--output_folder', metavar='OUT_DIR', type=path,
                         help='Path to the output folder', default=None)
+    parser.add_argument('-m', '--conversion_method',
+                        help='Backend method for converting an MR scan from DICOM to Nifti', type=str,
+                        choices=['dcm2niix', 'sitk'], default='dcm2niix')
     parser.add_argument('-v', '--verbose', help="To specify the level of verbose, Default: warning",
                         type=str, choices=['debug', 'info', 'warning', 'error'], default='warning')
     parser.add_argument("--override",
@@ -41,6 +44,7 @@ def main():
     input_category = args.input_category
     input_structure = args.input_structure
     dest_folder = args.output_folder
+    conversion_method = args.conversion_method
     override = args.override
 
     logging.basicConfig()
@@ -56,6 +60,9 @@ def main():
     if input_folder is None or not os.path.exists(input_folder):
         logging.error('The provided input folder does not exist!')
         sys.exit()
+    if conversion_method not in ["dcm2niix", "sitk"]:
+        logging.warning(f"Conversion method {conversion_method} is not supported. Setting to default => dcm2niix")
+        conversion_method = "dcm2niix"
     try:
         ensure_models_present()
         ensure_dcm2nii_present()
@@ -65,10 +72,10 @@ def main():
     try:
         if input_structure == "sectra_cdmedia":
             run_sectra_cdmedia(input_folder=input_folder, input_category=input_category, output_folder=dest_folder,
-                               override=override)
+                               conversion_method=conversion_method, override=override)
         elif input_structure == "manual":
             run_manual_structure(input_folder=input_folder, input_category=input_category, output_folder=dest_folder,
-                                 override=override)
+                                 conversion_method=conversion_method, override=override)
         else:
             logging.error('usage: the input_structure option (-s) must be selected from [sectra_cdmedia, manual]')
             sys.exit()

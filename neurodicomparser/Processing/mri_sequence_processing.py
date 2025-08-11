@@ -51,14 +51,14 @@ def sequence_selection(input_folder: str, override: bool = False) -> None:
         try:
             sequence_selection_ts(input_folder=os.path.join(input_folder, d), override=override)
         except Exception as e:
-            print(f"Sequence selection failed for timestamp {d} in {input_folder}")
+            print(f"Sequence selection failed for timestamp {d} in {input_folder} with: {e}")
 
 
 def sequence_selection_ts(input_folder: str, override: bool = False) -> None:
     """
 
     """
-    exclusion_list = ["diffusion", "adc", "dwi", "localizer"]
+    exclusion_list = ["diffusion", "adc", "dwi", "localizer", "screensave", "tractography"]
 
     dest_filename = os.path.join(input_folder, "selection.csv")
     if os.path.exists(dest_filename) and not override:
@@ -93,7 +93,7 @@ def sequence_selection_ts(input_folder: str, override: bool = False) -> None:
                 if min(curr_dim) > min(best_dim):
                     best_selected_files[seq] = {"file": nf, "spacings": nf_nib.header.get_zooms(), "dims": nf_nib.shape}
         except Exception as e:
-            print(f"Assessing MR scan selection status failed with {e}")
+            logging.error(f"Assessing MR scan selection status failed with {e}")
             continue
 
     # Saving the selection info
@@ -101,4 +101,4 @@ def sequence_selection_ts(input_folder: str, override: bool = False) -> None:
         pd.DataFrame([[key, value["file"]] for key, value in best_selected_files.items() if value is not None],
                      columns=["Sequence", "file"]).to_csv(dest_filename, index=False)
     except Exception as e:
-        print(f"Writing the selection info to csv failed with {e}")
+        logging.error(f"Writing the selection info to csv failed with {e}")
