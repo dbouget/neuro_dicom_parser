@@ -22,7 +22,7 @@ neurodicomparser = "neurodicomparser.__main__:main"
 include = [
   "neurodicomparser",
   "neurodicomparser.Utils",
-  "neurodicomparser.PreProcessing",
+  "neurodicomparser.Processing",
 ]
 
 [tool.black]
