@@ -3,10 +3,11 @@ import os
 import sys
 import logging
 import traceback
+
+from neurodicomparser.Utils.OptionsConfiguration import OptionsConfiguration
 from neurodicomparser.Utils.ensure_dcm2nii_present import ensure_dcm2nii_present
 from neurodicomparser.Utils.ensure_models_present import ensure_models_present
-from neurodicomparser.run import run_sectra_cdmedia, run_manual_structure
-from neurodicomparser.Utils.OptionsConfiguration import OptionsConfiguration
+from neurodicomparser.run import run_parser
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -15,28 +16,21 @@ def main(argv):
     """
 
     """
-    input_folder = None
-    dest_folder = None
-    conversion_method = "dcm2niix"
+    config_file = None
 
     try:
         logging.basicConfig(format="%(asctime)s ; %(name)s ; %(levelname)s ; %(message)s", datefmt='%d/%m/%Y %H.%M')
         logging.getLogger().setLevel(logging.WARNING)
-        opts, args = getopt.getopt(argv, "h:i:o:m:v", ["input_folder=", "output_folder=",
-                                                             "conversion_method", "Verbose="])
+        opts, args = getopt.getopt(argv, "h:c:v", ["config_file=", "Verbose="])
     except getopt.GetoptError:
-        print('usage: main.py -i <src_cohort_folder> -o <dest_folder> (--Verbose <mode>)')
+        print('usage: main.py -c <config_file> (--Verbose <mode>)')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('main.py -i <src_cohort_folder> -o <dest_folder> (--Verbose <mode>)')
+            print('main.py -c <config_file> (--Verbose <mode>)')
             sys.exit()
-        elif opt in ("-i", "--input_folder"):
-            input_folder = arg
-        elif opt in ("-o", "--output_folder"):
-            dest_folder = arg
-        elif opt in ("-m", "--conversion_method"):
-            conversion_method = arg
+        elif opt in ("-c", "--config_file"):
+            config_file = arg
         elif opt in ("-v", "--Verbose"):
             if arg.lower() == 'debug':
                 logging.getLogger().setLevel(logging.DEBUG)
@@ -46,28 +40,13 @@ def main(argv):
                 logging.getLogger().setLevel(logging.WARNING)
             elif arg.lower() == 'error':
                 logging.getLogger().setLevel(logging.ERROR)
-
-    if input_folder is None or not os.path.exists(input_folder):
-        logging.error('The provided input folder does not exist!')
-        sys.exit()
-    if conversion_method not in ["dcm2niix", "sitk"]:
-        logging.warning(f"Conversion method {conversion_method} is not supported. Setting to default => dcm2niix")
-        conversion_method = "dcm2niix"
     try:
         ensure_models_present()
         ensure_dcm2nii_present()
     except Exception as e:
         logging.error(f'Downloading the mandatory resources failed with: {e}')
     try:
-        if OptionsConfiguration.getInstance().dicom_structure == "sectra_cdmedia":
-            run_sectra_cdmedia(input_folder=input_folder, output_folder=dest_folder,
-                               conversion_method=conversion_method)
-        elif OptionsConfiguration.getInstance().dicom_structure == "manual":
-            run_manual_structure(input_folder=input_folder, output_folder=dest_folder,
-                                 conversion_method=conversion_method)
-        else:
-            logging.error('usage: the input_structure option (-s) must be selected from [sectra_cdmedia, manual]')
-            sys.exit()
+        run_parser(config_fn=config_file)
     except Exception as e:
         logging.error(f'Process crashed with {e}\n\n{traceback.format_exc()}')
 

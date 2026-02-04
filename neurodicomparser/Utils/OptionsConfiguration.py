@@ -35,23 +35,27 @@ class OptionsConfiguration:
         """
         self.__reset()
 
-    def __reset(self):
+    def __reset(self) -> None:
+        self.input_folder = None
+        self.output_folder = None
         self.domain_target = "neuro"
         self.scope = "patient"
         self.dicom_structure = "sectra_cdmedia"
+        self.dicom_conversion_method = "dcm2niix"
         self.override = False
-
-        try:
-            options_fn = os.path.join(os.path.dirname(__file__), '..', 'user_options.ini')
-            self.user_options = None
-            if os.path.exists(options_fn):
-                self.user_options = configparser.ConfigParser()
-                self.user_options.read(options_fn)
-                self.__parse_user_options()
-        except Exception as e:
-            logging.error(f"User options file could not be read and has been ignored, collected {e}")
+        self.config_fn = None
+        self.user_options = None
 
     def __parse_user_options(self):
+        cf_key = "Case"
+        if self.user_options.has_option(cf_key, 'input_folder'):
+            if self.user_options[cf_key]['input_folder'].split('#')[0].strip() != '':
+                self.input_folder = self.user_options[cf_key]['input_folder'].split('#')[0].strip().lower()
+
+        if self.user_options.has_option(cf_key, 'output_folder'):
+            if self.user_options[cf_key]['output_folder'].split('#')[0].strip() != '':
+                self.output_folder = self.user_options[cf_key]['output_folder'].split('#')[0].strip().lower()
+
         cf_key = "Default"
         if self.user_options.has_option(cf_key, 'domain'):
             if self.user_options[cf_key]['domain'].split('#')[0].strip() != '':
@@ -78,3 +82,24 @@ class OptionsConfiguration:
         if self.dicom_structure not in ["sectra_cdmedia", "manual"]:
             raise ValueError(f"The DICOM structure with value {self.dicom_structure} is not handled!"
                              f"Please select from [sectra_cdmedia, manual]!")
+        if self.user_options.has_option(cf_key, 'conversion_method'):
+            if self.user_options[cf_key]['conversion_method'].split('#')[0].strip() != '':
+                self.dicom_conversion_method = self.user_options[cf_key]['conversion_method'].split('#')[0].strip().lower()
+        if self.dicom_conversion_method not in ["dcm2niix", "sitk"]:
+            raise ValueError(f"The DICOM conversion method with value {self.dicom_structure} is not handled!"
+                             f"Please select from [dcm2niix, sitk]!")
+
+    def init(self, config_fn: str) -> None:
+        try:
+            self.config_fn = config_fn
+            if not self.config_fn:
+                self.config_fn = os.path.join(os.path.dirname(__file__), '..', 'user_options.ini')
+            if not os.path.exists(self.config_fn):
+                raise ValueError(
+                    f"A configuration is necessary either as input through -c or directly at the folder root.")
+
+            self.user_options = configparser.ConfigParser()
+            self.user_options.read(self.config_fn)
+            self.__parse_user_options()
+        except Exception as e:
+            logging.error(f"User options file could not be read and has been ignored, collected {e}")

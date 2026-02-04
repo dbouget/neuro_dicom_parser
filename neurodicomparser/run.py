@@ -9,6 +9,22 @@ from .Processing.ct_sequence_processing import ct_sequence_selection, ct_sequenc
 from .Utils.OptionsConfiguration import OptionsConfiguration
 
 
+def run_parser(config_fn: str) -> None:
+    try:
+        OptionsConfiguration.getInstance().init(config_fn=config_fn)
+        input_folder = OptionsConfiguration.getInstance().input_folder
+        output_folder = OptionsConfiguration.getInstance().output_folder
+        conversion_method = OptionsConfiguration.getInstance().dicom_conversion_method
+        if OptionsConfiguration.getInstance().dicom_structure == "sectra_cdmedia":
+            run_sectra_cdmedia(input_folder=input_folder, output_folder=output_folder,
+                               conversion_method=conversion_method)
+        elif OptionsConfiguration.getInstance().dicom_structure == "manual":
+            run_manual_structure(input_folder=input_folder, output_folder=output_folder,
+                                 conversion_method=conversion_method)
+    except Exception as e:
+        raise ValueError(f"Running DICOM parser failed with {e}")
+
+
 def run_sectra_cdmedia(input_folder: str, output_folder: str, conversion_method: str = "dcm2niix") -> None:
     if OptionsConfiguration.getInstance().scope == "cohort":
         __run_cohort_patient_sectra_cdmedia(input_folder=input_folder, output_folder=output_folder,
