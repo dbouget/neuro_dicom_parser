@@ -50,11 +50,11 @@ class OptionsConfiguration:
         cf_key = "Case"
         if self.user_options.has_option(cf_key, 'input_folder'):
             if self.user_options[cf_key]['input_folder'].split('#')[0].strip() != '':
-                self.input_folder = self.user_options[cf_key]['input_folder'].split('#')[0].strip().lower()
+                self.input_folder = self.user_options[cf_key]['input_folder'].split('#')[0].strip()
 
         if self.user_options.has_option(cf_key, 'output_folder'):
             if self.user_options[cf_key]['output_folder'].split('#')[0].strip() != '':
-                self.output_folder = self.user_options[cf_key]['output_folder'].split('#')[0].strip().lower()
+                self.output_folder = self.user_options[cf_key]['output_folder'].split('#')[0].strip()
 
         cf_key = "Default"
         if self.user_options.has_option(cf_key, 'domain'):
