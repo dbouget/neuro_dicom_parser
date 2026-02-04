@@ -7,10 +7,11 @@ import traceback
 import logging
 import pandas as pd
 from ..Utils.io_utils import safename_formatting
+from ..Utils.OptionsConfiguration import OptionsConfiguration
 
 
 def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder: str = None,
-                                                method: str = 'dcm2niix', override: bool = False) -> None:
+                                                method: str = 'dcm2niix') -> None:
     """
     Iterate over the different sub-folders of a main patient folder, and converts to nifti
     every found DICOM sequences, keeping the sub-folders structure.
@@ -19,6 +20,7 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
     :param output_folder: a DICOM-conv folder is created at the output_folder folder. This new folder will contain
      all converted volumes, along with DICOM metadata in csv files.
     """
+    override = OptionsConfiguration.getInstance().override
     patient_base_dicom = os.path.join(input_folder, 'DICOM')
     if not os.path.exists(patient_base_dicom):
         print('No existing DICOM folder in {}'.format(input_folder))
@@ -200,8 +202,7 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
                     continue
 
 
-def unpack_convert_dicom_patient(input_folder: str, output_folder: str = None, method: str = 'dcm2niix',
-                                 override: bool = False) -> None:
+def unpack_convert_dicom_patient(input_folder: str, output_folder: str = None, method: str = 'dcm2niix') -> None:
     timestamp_dirs = []
     for _, dirs, _ in os.walk(input_folder):
         for name in dirs:
@@ -213,11 +214,10 @@ def unpack_convert_dicom_patient(input_folder: str, output_folder: str = None, m
         ts_dir = os.path.join(input_folder, ts, 'dicom') if os.path.exists(os.path.join(input_folder, ts, 'dicom')) else os.path.join(input_folder, ts)
         ts_output_folder = os.path.join(output_folder, ts)
         os.makedirs(ts_output_folder, exist_ok=True)
-        unpack_convert_dicom_investigation(input_folder=ts_dir, output_folder=ts_output_folder, method=method,
-                                           override=override)
+        unpack_convert_dicom_investigation(input_folder=ts_dir, output_folder=ts_output_folder, method=method)
 
-def unpack_convert_dicom_investigation(input_folder: str, output_folder: str = None, method: str = 'dcm2niix',
-                                       override: bool = False) -> None:
+def unpack_convert_dicom_investigation(input_folder: str, output_folder: str = None, method: str = 'dcm2niix') -> None:
+    override = OptionsConfiguration.getInstance().override
     input_folder = os.path.join(input_folder, 'dicom') if os.path.exists(os.path.join(input_folder, 'dicom')) else input_folder
     investigation_dirs = []
     for _, dirs, _ in os.walk(input_folder):
@@ -236,17 +236,16 @@ def unpack_convert_dicom_investigation(input_folder: str, output_folder: str = N
             else:
                 shutil.rmtree(inv_output_folder)
         os.makedirs(inv_output_folder)
-        convert_single_dicom_sequence(input_folder=inv_dir, output_folder=inv_output_folder, method=method,
-                                      override=override)
+        convert_single_dicom_sequence(input_folder=inv_dir, output_folder=inv_output_folder, method=method)
 
 
-def convert_single_dicom_sequence(input_folder: str, output_folder: str = None, method: str = 'dcm2niix',
-                                  override: bool = False) -> None:
+def convert_single_dicom_sequence(input_folder: str, output_folder: str = None, method: str = 'dcm2niix') -> None:
     """
     """
     # @TODO. assert to make sure there are no other directories inside, only .dcm files
 
     try:
+        override = OptionsConfiguration.getInstance().override
         reader = sitk.ImageSeriesReader()
         serie_names = reader.GetGDCMSeriesIDs(input_folder)
 
