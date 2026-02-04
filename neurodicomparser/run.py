@@ -1,15 +1,25 @@
 import traceback
 import logging
 import os
+import sys
 
 from tqdm import tqdm
 from .Processing.dicom_processing import unpack_convert_dicom_folder_sectra_cdviewer, convert_single_dicom_sequence, unpack_convert_dicom_investigation, unpack_convert_dicom_patient
 from .Processing.mri_sequence_processing import identify_sequences, sequence_selection, sequence_selection_ts
 from .Processing.ct_sequence_processing import ct_sequence_selection, ct_sequence_selection_ts
 from .Utils.OptionsConfiguration import OptionsConfiguration
+from .Utils.ensure_dcm2nii_present import ensure_dcm2nii_present
+from .Utils.ensure_models_present import ensure_models_present
 
 
 def run_parser(config_fn: str) -> None:
+    try:
+        ensure_models_present()
+        ensure_dcm2nii_present()
+    except Exception as e:
+        logging.error(f'Downloading the mandatory resources failed with: {e}')
+        sys.exit()
+
     try:
         OptionsConfiguration.getInstance().init(config_fn=config_fn)
         input_folder = OptionsConfiguration.getInstance().input_folder

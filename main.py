@@ -4,9 +4,6 @@ import sys
 import logging
 import traceback
 
-from neurodicomparser.Utils.OptionsConfiguration import OptionsConfiguration
-from neurodicomparser.Utils.ensure_dcm2nii_present import ensure_dcm2nii_present
-from neurodicomparser.Utils.ensure_models_present import ensure_models_present
 from neurodicomparser.run import run_parser
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -40,11 +37,6 @@ def main(argv):
                 logging.getLogger().setLevel(logging.WARNING)
             elif arg.lower() == 'error':
                 logging.getLogger().setLevel(logging.ERROR)
-    try:
-        ensure_models_present()
-        ensure_dcm2nii_present()
-    except Exception as e:
-        logging.error(f'Downloading the mandatory resources failed with: {e}')
     try:
         run_parser(config_fn=config_file)
     except Exception as e:
