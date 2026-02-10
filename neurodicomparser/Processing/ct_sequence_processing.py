@@ -59,7 +59,7 @@ def ct_sequence_selection_ts(input_folder: str, override: bool = False) -> None:
     """
     #@TODO. Should ensure all CTs are in the same folder, for the given timestamp!
     """
-    exclusion_list = ["diffusion", "adc", "dwi", "localizer", "screensave", "tractography"]
+    exclusion_list = ["diffusion", "adc", "dwi", "localizer", "screensave", "tractography", "derived", "secondary"]
 
     dest_filename = os.path.join(input_folder, "selection.csv")
     if os.path.exists(dest_filename) and not override:
@@ -68,6 +68,7 @@ def ct_sequence_selection_ts(input_folder: str, override: bool = False) -> None:
 
     best_selected_files = {}
     best_selected_files["HR"] = None
+    all_files_info = {}
     nifti_files = [x for x in glob.glob(os.path.join(input_folder, "**/*.nii.gz"), recursive=True) if ("annotation" or "label") not in x]
     for nf in nifti_files:
         try:
@@ -91,17 +92,43 @@ def ct_sequence_selection_ts(input_folder: str, override: bool = False) -> None:
                 best_dim = best_selected_files[seq]["dims"]
                 best_extent = best_selected_files[seq]["structure_extent"]
                 replace = False
-                relative_extent = structure_extent * best_spac[2]
+                relative_extent = structure_extent * curr_spac[2]
                 if relative_extent > (best_extent * best_spac[2]): # and min(curr_dim) < min(best_dim):
                     replace = True
 
                 if replace:
                     best_selected_files[seq] = {"file": nf, "spacings": nf_nib.header.get_zooms(), "dims": nf_nib.shape,
                                                 "structure_extent": structure_extent}
+                all_files_info[nf] = {"file": nf, "spacings": nf_nib.header.get_zooms(), "dims": nf_nib.shape,
+                                                "structure_extent": structure_extent}
         except Exception as e:
             logging.error(f"Assessing CT scan selection status failed with {e}")
             continue
 
+    # If still empty, loosening the requirements on the eligible inputs
+    if best_selected_files["HR"] is None:
+        exclusion_list.remove("derived")
+        exclusion_list.remove("secondary")
+        seq = "HR"
+        for nf in all_files_info.keys():
+            name_split = os.path.basename(nf).lower().split('-')
+            if any(item in name_split for item in exclusion_list):
+                logging.info(f"Discarded input CT scan {nf} because its name contains an exclusion tag")
+                continue
+
+            if best_selected_files[seq] is None:
+                best_selected_files[seq] = all_files_info[nf]
+            else:
+                best_spac = best_selected_files[seq]["spacings"]
+                best_dim = best_selected_files[seq]["dims"]
+                best_extent = best_selected_files[seq]["structure_extent"]
+                replace = False
+                relative_extent = all_files_info[nf]["structure_extent"] * all_files_info[nf]["spacings"][2]
+                if relative_extent > (best_extent * best_spac[2]): # and min(curr_dim) < min(best_dim):
+                    replace = True
+
+                if replace:
+                    best_selected_files[seq] = all_files_info[nf]
     # Saving the selection info
     try:
         pd.DataFrame([[key, value["file"]] for key, value in best_selected_files.items() if value is not None],

@@ -42,6 +42,7 @@ class OptionsConfiguration:
         self.scope = "patient"
         self.dicom_structure = "sectra_cdmedia"
         self.dicom_conversion_method = "dcm2niix"
+        self.dicom_fully_anonymised = False
         self.override = False
         self.config_fn = None
         self.user_options = None
@@ -88,6 +89,9 @@ class OptionsConfiguration:
         if self.dicom_conversion_method not in ["dcm2niix", "sitk"]:
             raise ValueError(f"The DICOM conversion method with value {self.dicom_structure} is not handled!"
                              f"Please select from [dcm2niix, sitk]!")
+        if self.user_options.has_option(cf_key, 'fully_anonymised'):
+            if self.user_options[cf_key]['fully_anonymised'].split('#')[0].strip() != '':
+                self.dicom_fully_anonymised = True if self.user_options[cf_key]['fully_anonymised'].split('#')[0].strip().lower() == "true" else False
 
     def init(self, config_fn: str) -> None:
         try:
