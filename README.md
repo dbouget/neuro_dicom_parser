@@ -5,6 +5,8 @@ or neurosurgery department. All DICOM acquisitions are converted to nifti, the c
 identified for each scan, and then a subset of four MR scans (i.e., T1w, T1w-CE, T2, FLAIR) is isolated for further
 processing.
 
+# -i /home/dnbouget/work/data/Original/Overføring_1/17009_kontroller -c single_patient -s sectra_cdmedia -o /home/dnbouget/work/data/Original/Overføring_1_converted -v debug
+
 ## [Installation](https://github.com/dbouget/neuro_dicom_parser#installation)
 
 ```

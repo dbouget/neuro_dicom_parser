@@ -24,12 +24,13 @@ def compute_classification(input_filename: str, target_name: str, override: bool
     if target_name == "sequence":
         model_name = "MRI_SequenceClassifier"
     else:
-        print(f"No classification model for {target_name}")
+        logging.warning(f"No classification model for {target_name}, skipping.")
         return
 
-    classification_files = [os.path.basename(x).replace('_sequence_classification_results.csv', '') for x in glob.glob(os.path.join(os.path.dirname(input_filename), "*_sequence_classification_results.csv"), recursive=False)]
-    classification_exists = True in [x in os.path.basename(input_filename) for x in classification_files]
-
+    if "mosaic" in os.path.basename(input_filename).lower():
+        logging.info(f"Skipping classification step for mosaic input image {input_filename}")
+        return
+    classification_exists = True in [y == os.path.basename(input_filename).split('_Seq')[0] for y in [os.path.basename(x).replace('_sequence_classification_results.csv', '') for x in glob.glob(os.path.join(os.path.dirname(input_filename), "*_sequence_classification_results.csv"), recursive=False)]]
     if override or not classification_exists:
         dest_classification_file = input_filename.replace('.nii.gz', '_sequence_classification_results.csv')
         tmp_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tmp')
@@ -92,7 +93,7 @@ def compute_classification(input_filename: str, target_name: str, override: bool
             raise ValueError(f"Automatic classification failed, no results file on disk.")
         results_df = pd.read_csv(results_filename)
         max_ind = np.argmax(results_df["Prediction"])
-        output_image_filename = input_filename.replace('.nii.gz', '_' + results_df["Class"].values[max_ind] + '_' + str(int(results_df["Prediction"].values[max_ind] * 100.)) + '.nii.gz')
+        output_image_filename = input_filename.replace('.nii.gz', '_Seq-' + results_df["Class"].values[max_ind] + '_' + str(int(results_df["Prediction"].values[max_ind] * 100.)) + '.nii.gz')
         shutil.move(src=input_filename, dst=output_image_filename)
         shutil.move(src=input_filename.replace('.nii.gz', '_metadata.csv'), dst=output_image_filename.replace('.nii.gz', '_metadata.csv'))
         shutil.copyfile(src=results_filename, dst=dest_classification_file)

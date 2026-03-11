@@ -12,7 +12,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 def main(argv):
     """
-
+    @TODO. If the output_folder is None, should create a DICOM_conv in input_folder, else just use the output_folder without additional DICOM_conv?
     """
     input_folder = None
     input_structure = None
@@ -54,6 +54,7 @@ def main(argv):
                 logging.getLogger().setLevel(logging.ERROR)
         elif opt in ("-x", "--override"):
             override = True
+        # @TODO. Add parameters for outputting either the csv file with selection or the raw files directly?
 
     if input_folder is None or not os.path.exists(input_folder):
         logging.error('The provided input folder does not exist!')

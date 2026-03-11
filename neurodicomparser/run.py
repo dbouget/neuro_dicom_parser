@@ -38,9 +38,12 @@ def __run_cohort_patient_sectra_cdmedia(input_folder: str, output_folder: str, c
                                             override=override)
 
 
-def __run_single_patient_sectra_cdmedia(input_folder: str, output_folder: str, conversion_method: str = "dcm2niix",
-                                        override: bool = False) -> None:
+def __run_single_patient_sectra_cdmedia(input_folder: str, output_folder: str | None,
+                                        conversion_method: str = "dcm2niix", override: bool = False) -> None:
+    input_folder = input_folder.rstrip(os.sep)
     converted_folder = os.path.join(output_folder, os.path.basename(input_folder)) if output_folder is not None else input_folder
+    if output_folder is None:
+        converted_folder = os.path.join(converted_folder, 'DICOM-conv')
     unpack_convert_dicom_folder_sectra_cdviewer(input_folder=input_folder, output_folder=converted_folder,
                                                 method=conversion_method, override=override)
     identify_sequences(input_folder=converted_folder, structure="sectra_cdmedia", override=override)
