@@ -105,7 +105,7 @@ def sequence_selection_ts(input_folder: str, override: bool = False) -> None:
                 elif slice_thickness > 2 and vol_orientation[2] in ["R", "L"]:
                     primary_orientation = "Sagittal"
                 is_axial = primary_orientation == "Axial"
-                volume_info = [s, nf, original_volume, voxel_size, inplane_mm, slice_thickness, anisotropy,
+                volume_info = [s, os.path.basename(nf), original_volume, voxel_size, inplane_mm, slice_thickness, anisotropy,
                                probability, disk_size, primary_orientation, is_axial]
                 if all_files_pre_seq[s] is None:
                     all_files_pre_seq[s] = [volume_info]
@@ -147,9 +147,9 @@ def sequence_selection_ts(input_folder: str, override: bool = False) -> None:
     for nf in nifti_files:
         nf = str(nf)
         if "adc" in os.path.basename(nf).lower():
-            best_selected_files["ADC"] = nf
+            best_selected_files["ADC"] = os.path.basename(nf)
         elif any(v in os.path.basename(nf).lower() for v in ["diffusion", "trace", "tracew"]):
-            best_selected_files["DWI"] = nf
+            best_selected_files["DWI"] = os.path.basename(nf)
 
     # Saving the selection info
     try:
