@@ -8,6 +8,7 @@ import configparser
 import pandas as pd
 import numpy as np
 import logging
+import nibabel as nib
 from raidionicsrads.compute import run_rads
 
 
@@ -30,6 +31,11 @@ def compute_classification(input_filename: str, target_name: str, override: bool
     if "mosaic" in os.path.basename(input_filename).lower():
         logging.info(f"Skipping classification step for mosaic input image {input_filename}")
         return
+    dtype = nib.load(input_filename).get_data_dtype()
+    if dtype.kind == 'V':
+        logging.info(f"Skipping classification step for Void dtype input image {input_filename}")
+        return
+
     classification_exists = True in [y == os.path.basename(input_filename).split('_Seq')[0] for y in [os.path.basename(x).replace('_sequence_classification_results.csv', '') for x in glob.glob(os.path.join(os.path.dirname(input_filename), "*_sequence_classification_results.csv"), recursive=False)]]
     if override or not classification_exists:
         dest_classification_file = input_filename.replace('.nii.gz', '_sequence_classification_results.csv')
@@ -95,7 +101,8 @@ def compute_classification(input_filename: str, target_name: str, override: bool
         max_ind = np.argmax(results_df["Prediction"])
         output_image_filename = input_filename.replace('.nii.gz', '_Seq-' + results_df["Class"].values[max_ind] + '_' + str(int(results_df["Prediction"].values[max_ind] * 100.)) + '.nii.gz')
         shutil.move(src=input_filename, dst=output_image_filename)
-        shutil.move(src=input_filename.replace('.nii.gz', '_metadata.csv'), dst=output_image_filename.replace('.nii.gz', '_metadata.csv'))
+        shutil.move(src=os.path.join(os.path.dirname(input_filename), "Meta", os.path.basename(input_filename).replace('.nii.gz', '_metadata.csv')),
+                    dst=os.path.join(os.path.dirname(output_image_filename), "Meta", os.path.basename(output_image_filename).replace('.nii.gz', '_metadata.csv')))
         shutil.copyfile(src=results_filename, dst=dest_classification_file)
     else:
         logging.info(f"Skipping sequence classification for {input_filename}")

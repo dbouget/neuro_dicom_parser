@@ -214,7 +214,10 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
                         if os.path.isdir(tmp_folder):
                             shutil.rmtree(tmp_folder)
                     try:
-                        metatags_df.to_csv(dump_image_path.split('.')[0] + '_metadata.csv', index=False, encoding='utf-8')
+                        meta_dump_path = os.path.join(os.path.dirname(dump_image_path), 'Meta',
+                                                      os.path.basename(dump_image_path).split('.')[0] + '_metadata.csv')
+                        os.makedirs(os.path.dirname(meta_dump_path), exist_ok=True)
+                        metatags_df.to_csv(meta_dump_path, index=False, encoding='utf-8')
                     except Exception as e:
                         # Some fields in the metadata have a weird encoding....
                         # metatags = [[k, str.encode(reader.GetMetaData(0, k)).decode('utf8', 'surrogateescape')] for k in
@@ -596,7 +599,10 @@ def convert_single_dicom_sequence(input_folder: str, output_folder: str = None, 
             if os.path.isdir(tmp_folder):
                 shutil.rmtree(tmp_folder)
         try:
-            metatags_df.to_csv(dump_image_path.split('.')[0] + '_metadata.csv', index=False, encoding='utf-8')
+            meta_dump_path = os.path.join(os.path.dirname(dump_image_path), 'Meta',
+                                          os.path.basename(dump_image_path).split['.'][0] + '_metadata.csv')
+            os.makedirs(os.path.dirname(meta_dump_path), exist_ok=True)
+            metatags_df.to_csv(meta_dump_path, index=False, encoding='utf-8')
         except Exception as e:
             # metatags = [[k, str.encode(reader.GetMetaData(0, k)).decode('utf8', 'surrogateescape')] for k in
             #             existing_dicom_keys]
