@@ -1,3 +1,4 @@
+from collections import Counter
 import os
 import SimpleITK as sitk
 import datetime
@@ -8,6 +9,7 @@ import logging
 import pandas as pd
 from tqdm import tqdm
 from ..Utils.io_utils import safename_formatting
+from ..Utils.dicom_utils import *
 
 
 def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder: str = None,
@@ -54,7 +56,8 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
         ts_order = 0
         for subdir in timestamp_dicom_sub_dirs:
             ts_order = ts_order + 1
-            timestamp = None
+            timestamps = []
+            primary_date = None
             investigations_for_timestamp = []
             timestamp_base_main_dicom = os.path.join(patient_base_main_dicom, subdir)
             sub_dir = []
@@ -92,42 +95,26 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
                         reader.LoadPrivateTagsOn()
                         reader.SetMetaDataDictionaryArrayUpdate(True)
                         investigations_for_timestamp.append(reader)
-
                         tmp = reader.Execute()
-                        dc_keys = reader.GetMetaDataKeys(0)
-                        date = None
-                        date_dctags = [
-                            '0008|0012',  # Instance Creation Date
-                            '0008|0020',  # Study Date
-                            '0008|0021',  # Series Date
-                            '0008|0022',  # Acquisition Date
-                            '0008|0023',  # Content Date
-                        ]
-                        for tag in date_dctags:
-                            if tag not in dc_keys:
-                                continue
 
-                            raw_value = reader.GetMetaData(0, tag)
-                            if not raw_value or raw_value == "":
-                                continue
-
-                            raw_date = raw_value[:8]  # YYYYMMDD
-
-                            try:
-                                date = raw_date #datetime.datetime.strptime(raw_date, "%Y%m%d")
-                                break
-                            except ValueError:
-                                continue
-
-                        if timestamp is None and date:
-                            timestamp = date
+                        primary = is_dicom_acquisition_primary(reader)
+                        date = extract_dicom_date(reader)
+                        if date:
+                            timestamps.append(date)
+                        if primary_date is None and primary and date is not None:
+                            primary_date = date
                 except Exception as e:
                     # print('Patient {}, could not process DICOM'.format(uid))
                     # print('Collected exception: {}'.format(e.args[0]))
                     continue
 
-            if timestamp is None:
+            if len(timestamps) == 0:
                 timestamp =  "unknown" + str(ts_order)
+            elif primary_date is not None:
+                timestamp = primary_date
+            else:
+                counts = Counter(timestamps)
+                timestamp = counts.most_common(1)[0][0]
             logging.info(f'Inclusion for timestamp: {timestamp}')
             for r, reader in enumerate(investigations_for_timestamp):
                 try:
@@ -147,16 +134,6 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
                         image_dname = '-'.join(image_dname.split()).replace('.', '-').replace('/', '-').replace('\\', '-')
                     elif '0008|0008' in existing_dicom_keys:
                         image_dname = reader.GetMetaData(0, '0008|0008').strip().replace('\\', '-').replace('.', '-').replace('/', '-')
-
-                    date = "unknown" + str(r)
-                    if '0008|0020' in reader.GetMetaDataKeys(0):
-                        date = reader.GetMetaData(0, '0008|0020')[0:8]
-                    elif '0008|0021' in reader.GetMetaDataKeys(0):
-                        date = reader.GetMetaData(0, '0008|0021')[0:8]
-                    elif '0008|0022' in reader.GetMetaDataKeys(0):
-                        date = reader.GetMetaData(0, '0008|0022')[0:8]
-                    elif '0008|0023' in reader.GetMetaDataKeys(0):
-                        date = reader.GetMetaData(0, '0008|0023')[0:8]
 
                     image_name = str(r+1) + '_' + image_dname + '.nii.gz'
                     dump_image_path = os.path.join(output_folder, timestamp, image_name)
