@@ -1,5 +1,6 @@
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
+import os
 
 
 def normalize(series):
@@ -110,3 +111,5 @@ def slice_thickness_score(
     # scores[too_thin] = -((ideal - t[too_thin]) / ideal) ** penalty_power
 
     return scores
+
+

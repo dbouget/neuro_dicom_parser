@@ -13,6 +13,7 @@ authors = [{ name = "David Bouget", email = "david.bouget@sintef.no" }]
 
 dependencies = [
   "raidionicsrads",
+  "pydicom",
 ]
 
 [project.scripts]
