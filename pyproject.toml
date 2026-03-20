@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neurodicomparser"
-version = "1.0.0"
-description = "Tool for automatically converting the content of a DICOM folder to nifti, with MRI sequence classification"
+version = "1.1.0"
+description = "Tool for automatically converting the content of a DICOM folder to nifti, with MRI/CT sequence identification"
 readme = "README.md"
 license = { text = "BSD-2-Clause" }
 requires-python = ">=3.9"
