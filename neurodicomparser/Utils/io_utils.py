@@ -1,5 +1,12 @@
 import re
+import os
 
+
+def list_subdirs(path: str) -> list[str]:
+    """
+    Replace repeated os.walk+break pattern with a simple helper
+    """
+    return [e.name for e in os.scandir(path) if e.is_dir()]
 
 def safename_formatting(input: str) -> str:
     """

@@ -6,6 +6,9 @@ import logging
 
 
 def ensure_models_present():
+    """
+    @TODO. Could look for exisiting raidionicsrads and pull from/to?
+    """
     models_path = os.path.join(os.path.dirname(__file__), "..", "Models")
     urls = {"MRI_SequenceClassifier": "https://github.com/raidionics/Raidionics-models/releases/download/v1.3.0-rc/Raidionics-MRI_SequenceClassifier-v13.zip",
             "CT_Lungs": "https://github.com/raidionics/Raidionics-models/releases/download/v1.3.0-rc/Raidionics-CT_Lungs-v13.zip"}

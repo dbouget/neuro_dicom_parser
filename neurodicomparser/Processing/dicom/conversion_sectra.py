@@ -2,6 +2,7 @@ from collections import Counter
 import os
 import SimpleITK as sitk
 import datetime
+import time
 import json
 import shutil
 import subprocess
@@ -9,14 +10,15 @@ import traceback
 import logging
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 import pydicom
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.pixel_data_handlers.util import apply_modality_lut
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
-from ...Utils.io_utils import safename_formatting, sanitize_filename
+from ...Utils.io_utils import *
 from ...Utils.OptionsConfiguration import OptionsConfiguration
 from ...Utils.dicom_utils import *
-import tqdm
+from ...Processing.identification.identification_process import identification_process
 
 
 def run_cohort_patient_sectra_cdmedia(input_folder: str, output_folder: str, conversion_method: str = "dcm2niix") -> None:
@@ -41,8 +43,10 @@ def run_single_patient_sectra_cdmedia(input_folder: str, output_folder: str | No
         converted_folder = os.path.join(converted_folder, 'DICOM-conv')
     unpack_convert_dicom_folder_sectra_cdviewer(input_folder=input_folder, output_folder=converted_folder,
                                                 method=conversion_method)
-    # identify_sequences(input_folder=converted_folder, structure="sectra_cdmedia")
-    # sequence_selection(input_folder=converted_folder)
+    identification_process(input_folder=converted_folder)
+    # if OptionsConfiguration.getInstance().identification_status:
+    #     identify_sequences(input_folder=converted_folder, structure="sectra_cdmedia")
+    #     sequence_selection(input_folder=converted_folder)
 
 def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder: str = None,
                                                 method: str = 'dcm2niix') -> None:
@@ -68,22 +72,22 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
         shutil.rmtree(output_folder)
     os.makedirs(output_folder, exist_ok=True)
 
-    main_dicom_dir = []
-    for _, dirs, _ in os.walk(patient_base_dicom):
-        for name in dirs:
-            main_dicom_dir.append(name)
-        break
+    main_dicom_dir = list_subdirs(patient_base_dicom)
+    # for _, dirs, _ in os.walk(patient_base_dicom):
+    #     for name in dirs:
+    #         main_dicom_dir.append(name)
+    #     break
 
     if len(main_dicom_dir) == 0:
         return
 
     for mdd in main_dicom_dir:
         patient_base_main_dicom = os.path.join(patient_base_dicom, mdd)
-        timestamp_dicom_sub_dirs = []
-        for _, dirs, _ in os.walk(patient_base_main_dicom):
-            for name in dirs:
-                timestamp_dicom_sub_dirs.append(name)
-            break
+        timestamp_dicom_sub_dirs = list_subdirs(patient_base_main_dicom)
+        # for _, dirs, _ in os.walk(patient_base_main_dicom):
+        #     for name in dirs:
+        #         timestamp_dicom_sub_dirs.append(name)
+        #     break
 
         # Iterating over each timestamp
         ts_order = 0
@@ -93,18 +97,18 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
             primary_date = None
             investigations_for_timestamp = []
             timestamp_base_main_dicom = os.path.join(patient_base_main_dicom, subdir)
-            sub_dir = []
-            for _, dirs, _ in os.walk(timestamp_base_main_dicom):
-                for name in dirs:
-                    sub_dir.append(name)
-                break
+            sub_dir = list_subdirs(timestamp_base_main_dicom)
+            # for _, dirs, _ in os.walk(timestamp_base_main_dicom):
+            #     for name in dirs:
+            #         sub_dir.append(name)
+            #     break
 
             timestamp_base_main_dicom = os.path.join(timestamp_base_main_dicom, sub_dir[0])
-            investigation_dirs = []
-            for _, dirs, _ in os.walk(timestamp_base_main_dicom):
-                for name in dirs:
-                    investigation_dirs.append(name)
-                break
+            investigation_dirs = list_subdirs(timestamp_base_main_dicom)
+            # for _, dirs, _ in os.walk(timestamp_base_main_dicom):
+            #     for name in dirs:
+            #         investigation_dirs.append(name)
+            #     break
 
             # Collecting each investigation for the current patient
             for inv in tqdm(investigation_dirs):
@@ -119,10 +123,15 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
                         reader.LoadPrivateTagsOn()
                         reader.SetMetaDataDictionaryArrayUpdate(True)
                         investigations_for_timestamp.append(reader)
-                        tmp = reader.Execute()
+                        # tmp = reader.Execute()
 
-                        primary = is_dicom_acquisition_primary(reader)
-                        date = extract_dicom_date(reader)
+                        # Read metadata from ONE file only — tags are series-level, not slice-level
+                        single_ds = pydicom.dcmread(dicom_names[0], stop_before_pixels=True)
+                        primary = is_dicom_acquisition_primary(single_ds)
+                        date = extract_dicom_date(single_ds)
+
+                        # primary = is_dicom_acquisition_primary(reader)
+                        # date = extract_dicom_date(reader)
                         if date:
                             timestamps.append(date)
                         if primary_date is None and primary and date is not None:
@@ -143,7 +152,7 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
             for r, reader in enumerate(investigations_for_timestamp):
                 try:
                     execute_and_output_reader(input_folder=input_folder, output_folder=output_folder, 
-                                              timestamp=timestamp, reader=reader, index=r, method=method)
+                                              timestamp=timestamp, reader=reader, method=method)
                 except Exception as e:
                     print('Collected exception: {}'.format(e.args[0]))
                     print('{}'.format(traceback.format_exc()))

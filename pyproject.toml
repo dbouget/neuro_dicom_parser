@@ -24,6 +24,8 @@ include = [
   "neurodicomparser",
   "neurodicomparser.Utils",
   "neurodicomparser.Processing",
+  "neurodicomparser.Processing.dicom",
+  "neurodicomparser.Processing.identification",
 ]
 
 [tool.black]

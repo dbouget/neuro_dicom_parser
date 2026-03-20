@@ -17,7 +17,7 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 from ...Utils.io_utils import safename_formatting, sanitize_filename
 from ...Utils.OptionsConfiguration import OptionsConfiguration
 from ...Utils.dicom_utils import *
-from conversion_sectra import *
+from .conversion_sectra import *
 
 
 def run_sectra_cdmedia(input_folder: str, output_folder: str, conversion_method: str = "dcm2niix") -> None:

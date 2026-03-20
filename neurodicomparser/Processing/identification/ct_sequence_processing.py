@@ -7,8 +7,8 @@ import numpy as np
 
 import pandas as pd
 
-from ..Processing.segmentation import compute_segmentation
-from ..Utils.image_utils import is_image_eligible
+from ...Processing.identification.segmentation import compute_segmentation
+from ...Utils.image_utils import is_image_eligible
 
 
 def identify_structure_extent(input_filename: str, structure_name: str) -> int:

@@ -113,3 +113,34 @@ def slice_thickness_score(
     return scores
 
 
+def classify_dcm2niix_outputs(tmp_folder):
+    """
+    Groups dcm2niix output files by base stem, classifying each role.
+    Returns a list of volume descriptors.
+    """
+    nii_files = [f for f in os.listdir(tmp_folder) if f.endswith(".nii.gz")]
+    
+    volumes = {}
+    for nii_file in nii_files:
+        # Separate derived suffixes dcm2niix appends
+        DERIVED_SUFFIXES = ["_ADC", "_TRACE", "_FA", "_ColFA", "_B0"]
+        
+        base = nii_file.replace(".nii.gz", "")
+        derived_tag = next((s for s in DERIVED_SUFFIXES if base.endswith(s)), None)
+        
+        if derived_tag:
+            parent_stem = base[: -len(derived_tag)]
+            if parent_stem in volumes:
+                volumes[parent_stem]["derived"][derived_tag] = nii_file
+            else:
+                # Parent not yet seen, create placeholder
+                volumes[parent_stem] = {"nii": None, "json": None, "derived": {derived_tag: nii_file}, "bvec": None, "bval": None}
+        else:
+            if base not in volumes:
+                volumes[base] = {"nii": None, "json": None, "derived": {}, "bvec": None, "bval": None}
+            volumes[base]["nii"] = nii_file
+            volumes[base]["json"] = base + ".json" if os.path.exists(os.path.join(tmp_folder, base + ".json")) else None
+            volumes[base]["bvec"] = base + ".bvec" if os.path.exists(os.path.join(tmp_folder, base + ".bvec")) else None
+            volumes[base]["bval"] = base + ".bval" if os.path.exists(os.path.join(tmp_folder, base + ".bval")) else None
+    
+    return volumes

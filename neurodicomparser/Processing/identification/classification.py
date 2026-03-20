@@ -8,23 +8,37 @@ import configparser
 import pandas as pd
 import numpy as np
 import logging
+import nibabel as nib
 from raidionicsrads.compute import run_rads
 
 
-def compute_segmentation(input_filename: str, model_name: str, override: bool = False) -> None:
+def compute_classification(input_filename: str, target_name: str, override: bool = False) -> None:
     """
-    Generic method for running segmentation on an input image.
+    Generic method for running classification on an input image.
 
     :param input_filename:
-    :param model_name:
+    :param target_name:
     :param override:
     :return:
     """
-    segmentation_files = glob.glob(os.path.join(os.path.dirname(input_filename), "*_annotation*.nii.gz"), recursive=False)
-    segmentation_exists = True in [os.path.basename(input_filename).replace('.nii.gz', '_annotation-') + model_name.split('_')[1] in x for x in segmentation_files]
+    model_name = None
+    if target_name == "sequence":
+        model_name = "MRI_SequenceClassifier"
+    else:
+        logging.warning(f"No classification model for {target_name}, skipping.")
+        return
 
-    if override or not segmentation_exists:
-        dest_segmentation_file = input_filename.replace('.nii.gz', '_sequence_classification_results.csv')
+    if "mosaic" in os.path.basename(input_filename).lower():
+        logging.info(f"Skipping classification step for mosaic input image {input_filename}")
+        return
+    dtype = nib.load(input_filename).get_data_dtype()
+    if dtype.kind == 'V':
+        logging.info(f"Skipping classification step for Void dtype input image {input_filename}")
+        return
+
+    classification_exists = True in [y == os.path.basename(input_filename).split('_Seq')[0] for y in [os.path.basename(x).replace('_sequence_classification_results.csv', '') for x in glob.glob(os.path.join(os.path.dirname(input_filename), "*_sequence_classification_results.csv"), recursive=False)]]
+    if override or not classification_exists:
+        dest_classification_file = input_filename.replace('.nii.gz', '_sequence_classification_results.csv')
         tmp_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tmp')
         if os.path.exists(tmp_folder):
             shutil.rmtree(tmp_folder)
@@ -46,25 +60,25 @@ def compute_segmentation(input_filename: str, model_name: str, override: bool = 
             # Setting up the runtime configuration file, mandatory for the raidionics_rads_lib to run.
             rads_config = configparser.ConfigParser()
             rads_config.add_section('Default')
-            rads_config.set('Default', 'task', 'mediastinum_diagnosis')
+            rads_config.set('Default', 'task', 'neuro_diagnosis')
             rads_config.set('Default', 'caller', '')
             rads_config.add_section('System')
             rads_config.set('System', 'gpu_id', "-1")  # Always running on CPU
             rads_config.set('System', 'input_folder', surrogate_folder_path)
             rads_config.set('System', 'output_folder', tmp_folder)
-            rads_config.set('System', 'model_folder', os.path.join(os.path.dirname(__file__), "..", "Models"))
+            rads_config.set('System', 'model_folder', os.path.join(os.path.dirname(__file__), "..", "..", "Models"))
             pipeline_filename = os.path.join(tmp_folder, 'rads_pipeline.json')
             # Option1. Copying directly from the model folder
             # shutil.copyfile(src=os.path.join(SharedResources.getInstance().raidionics_models_root, model_name, 'pipeline.json'),
             #                 dst=pipeline_filename)
             # Option2. Hard-coding for the different use cases.
             # Actually mandatory in the case of MRI_Brain where the pipeline must be adjusted on the fly to run on multiple sequences...
-            pipeline = create_segmentation_pipeline(model_name)
+            pipeline = create_classification_pipeline(model_name)
             with open(pipeline_filename, 'w', newline='\n') as outfile:
                 json.dump(pipeline, outfile, indent=4)
             rads_config.set('System', 'pipeline_filename', pipeline_filename)
             rads_config.add_section('Runtime')
-            rads_config.set('Runtime', 'reconstruction_method', 'thresholding')
+            rads_config.set('Runtime', 'reconstruction_method', 'probabilities')
             rads_config.set('Runtime', 'reconstruction_order', 'resample_first')
             rads_config_filename = os.path.join(tmp_folder, 'rads_config.ini')
             with open(rads_config_filename, 'w') as outfile:
@@ -73,35 +87,46 @@ def compute_segmentation(input_filename: str, model_name: str, override: bool = 
             print(f"Classification external setup failed with {e}.")
             return
 
-        print(f"Start automatic segmentation in {input_filename}.")
+        print(f"Start automatic classification in {input_filename}.")
         try:
             run_rads(config_filename=rads_config_filename)
         except Exception:
             print(traceback.format_exc())
-            raise ValueError(f"Automatic segmentation failed on: {input_filename}")
+            raise ValueError(f"Automatic classification failed on: {input_filename}")
 
-        results_filename = os.path.join(tmp_folder, "T0", os.path.basename(input_filename).split('.')[0] + '_annotation-' + model_name.split('_')[1] + '.nii.gz')
+        results_filename = os.path.join(tmp_folder, "MRSequence_classification_results_raw.csv")
         if not os.path.exists(results_filename):
-            raise ValueError(f"Automatic segmentation failed, no results file on disk.")
-        output_image_filename = os.path.join(os.path.dirname(input_filename), os.path.basename(results_filename))
-        shutil.copyfile(src=results_filename, dst=output_image_filename)
+            raise ValueError(f"Automatic classification failed, no results file on disk.")
+        results_df = pd.read_csv(results_filename)
+        max_ind = np.argmax(results_df["Prediction"])
+        output_image_filename = input_filename.replace('.nii.gz', '_Seq-' + results_df["Class"].values[max_ind] + '_' + str(int(results_df["Prediction"].values[max_ind] * 100.)) + '.nii.gz')
+        shutil.move(src=input_filename, dst=output_image_filename)
+        shutil.move(src=os.path.join(os.path.dirname(input_filename), "Meta", os.path.basename(input_filename).replace('.nii.gz', '_metadata.csv')),
+                    dst=os.path.join(os.path.dirname(output_image_filename), "Meta", os.path.basename(output_image_filename).replace('.nii.gz', '_metadata.csv')))
+        shutil.copyfile(src=results_filename, dst=dest_classification_file)
     else:
-        logging.info(f"Skipping structure segmentation for {input_filename}")
+        logging.info(f"Skipping sequence classification for {input_filename}")
 
-def create_segmentation_pipeline(model_name: str) -> dict:
+def create_classification_pipeline(model_name: str) -> dict:
     """
 
     """
+    model_target = None
+    if model_name == "MRI_SequenceClassifier":
+        model_target = ["MRSequence"]
+    else:
+        pass
+
     pip = {}
     pip_num_int = 0
 
     pip_num_int = pip_num_int + 1
     pip_num = str(pip_num_int)
     pip[pip_num] = {}
-    pip[pip_num]["task"] = 'Model selection'
+    pip[pip_num]["task"] = 'Classification'
+    pip[pip_num]["inputs"] = {}
+    pip[pip_num]["target"] = model_target
     pip[pip_num]["model"] = model_name
-    pip[pip_num]["timestamp"] = 0
-    pip[pip_num]["format"] = "thresholding"
-    pip[pip_num]["description"] = f"Identifying the best model for {model_name}"
+    pip[pip_num]["description"] = model_name.split('_')[1] + " classification"
 
     return pip

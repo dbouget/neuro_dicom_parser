@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..Processing.classification import compute_classification
-from ..Utils.image_utils import is_image_eligible
-from ..Utils.utils import normalize, penalized_score, signed_size_score, slice_thickness_score
+from .classification import compute_classification
+from ...Utils.image_utils import is_image_eligible
+from ...Utils.utils import normalize, penalized_score, signed_size_score, slice_thickness_score
 
 
-def identify_sequences(input_folder: str, structure: str = "sectra_cdmedia", override: bool = False) -> None:
+def identify_sequences(input_folder: str, override: bool = False) -> None:
     """
     Runs the sequence classification model over each converted image inside the DICOM-conv for the input patient.
     The image name is appended with the sequence acronym, in addition to the csv file with the classification probabilities

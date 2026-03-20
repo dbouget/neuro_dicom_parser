@@ -46,6 +46,8 @@ class OptionsConfiguration:
         self.override = False
         self.config_fn = None
         self.user_options = None
+        self.identification_domain = "neuro"
+        self.identification_status = True
 
     def __parse_user_options(self):
         cf_key = "Case"
@@ -93,6 +95,17 @@ class OptionsConfiguration:
             if self.user_options[cf_key]['fully_anonymised'].split('#')[0].strip() != '':
                 self.dicom_fully_anonymised = True if self.user_options[cf_key]['fully_anonymised'].split('#')[0].strip().lower() == "true" else False
 
+        cf_key = "Identification"
+        if self.user_options.has_option(cf_key, 'domain'):
+            if self.user_options[cf_key]['domain'].split('#')[0].strip() != '':
+                self.identification_domain = self.user_options[cf_key]['domain'].split('#')[0].strip().lower()
+        if self.identification_domain not in ["neuro", "mediastinum"]:
+            raise ValueError(f"The domain with value {self.identification_domain} is not handled!"
+                             f"Please select from [neuro, mediastinum]!")
+        if self.user_options.has_option(cf_key, 'perform'):
+            if self.user_options[cf_key]['perform'].split('#')[0].strip() != '':
+                self.identification_status = True if self.user_options[cf_key]['perform'].split('#')[0].strip().lower() == "true" else False
+        
     def init(self, config_fn: str) -> None:
         try:
             self.config_fn = config_fn
