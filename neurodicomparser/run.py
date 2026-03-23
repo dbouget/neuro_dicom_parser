@@ -40,20 +40,20 @@ def run_manual_structure(input_folder: str, output_folder: str, conversion_metho
     Running DICOM to Nifti conversion for a folder manually put together where the content can be a single DICOM volume, 
     a set if acquisition for a single date, a set of acquisitions over time, or a set of patient folders.
     """
-    if OptionsConfiguration.getInstance().scope == "patient":
+    if OptionsConfiguration.getInstance().content_granularity == "cohort":
         run_cohort_patient_manual(input_folder=input_folder, output_folder=output_folder,
                                     conversion_method=conversion_method)
-    elif OptionsConfiguration.getInstance().scope == "patient":
+    elif OptionsConfiguration.getInstance().content_granularity == "patient":
         run_single_patient_manual(input_folder=input_folder, output_folder=output_folder,
                                     conversion_method=conversion_method)
-    elif OptionsConfiguration.getInstance().scope == "timepoint":
+    elif OptionsConfiguration.getInstance().content_granularity == "timepoint":
         run_single_timepoint_manual(input_folder=input_folder, output_folder=output_folder,
                                       conversion_method=conversion_method)
-    elif OptionsConfiguration.getInstance().scope == "image":
+    elif OptionsConfiguration.getInstance().content_granularity == "image":
         run_single_image_manual(input_folder=input_folder, output_folder=output_folder,
                                   conversion_method=conversion_method)
     else:
-        logging.error(f"Provided input_category option {OptionsConfiguration.getInstance().scope} is not supported."
+        logging.error(f"Provided input_category option {OptionsConfiguration.getInstance().content_granularity} is not supported."
                       f" Please select from [cohort, patient, timepoint, image]")
-        raise ValueError(f"Provided input_category option {OptionsConfiguration.getInstance().scope} is not supported."
+        raise ValueError(f"Provided input_category option {OptionsConfiguration.getInstance().content_granularity} is not supported."
                       f" Please select from [cohort, patient, timepoint, image]")

@@ -21,31 +21,36 @@ from .conversion_sectra import *
 
 
 def run_sectra_cdmedia(input_folder: str, output_folder: str, conversion_method: str = "dcm2niix") -> None:
-    if OptionsConfiguration.getInstance().scope == "cohort":
+    if OptionsConfiguration.getInstance().content_granularity == "cohort":
         run_cohort_patient_sectra_cdmedia(input_folder=input_folder, output_folder=output_folder,
                                             conversion_method=conversion_method)
-    elif OptionsConfiguration.getInstance().scope == "patient":
+    elif OptionsConfiguration.getInstance().content_granularity == "patient":
         run_single_patient_sectra_cdmedia(input_folder=input_folder, output_folder=output_folder,
                                             conversion_method=conversion_method)
     else:
-        logging.error(f'The provided input category {OptionsConfiguration.getInstance().scope} is not handled for'
+        logging.error(f'The provided input category {OptionsConfiguration.getInstance().content_granularity} is not handled for'
                       f' a SECTRA CD Media folder structure. Please select from [cohort, patient].')
         
 def unpack_convert_dicom_patient(input_folder: str, output_folder: str = None, method: str = 'dcm2niix') -> None:
     """
     
     """
+    override = OptionsConfiguration.getInstance().dicom_override_existing
     timestamp_dirs = list_subdirs(input_folder)
 
     # Collecting each investigation for the current patient
     for ts in timestamp_dirs:
         ts_dir = os.path.join(input_folder, ts, 'dicom') if os.path.exists(os.path.join(input_folder, ts, 'dicom')) else os.path.join(input_folder, ts)
         ts_output_folder = os.path.join(output_folder, ts)
-        os.makedirs(ts_output_folder, exist_ok=True)
+        if os.path.exists(ts_output_folder) and not override:
+            logging.info(f"Skipping DICOM to nifti conversion, output folder already exists at {ts_output_folder}")
+            continue
+        elif os.path.exists(ts_output_folder):
+            shutil.rmtree(ts_output_folder)
+        os.makedirs(ts_output_folder)
         unpack_convert_dicom_investigation(input_folder=ts_dir, output_folder=ts_output_folder, method=method)
 
 def unpack_convert_dicom_investigation(input_folder: str, output_folder: str = None, method: str = 'dcm2niix') -> None:
-    override = OptionsConfiguration.getInstance().override
     input_folder = os.path.join(input_folder, 'dicom') if os.path.exists(os.path.join(input_folder, 'dicom')) else input_folder
     investigation_dirs = list_subdirs(input_folder)
 

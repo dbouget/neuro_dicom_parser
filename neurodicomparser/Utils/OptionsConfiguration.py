@@ -38,15 +38,17 @@ class OptionsConfiguration:
     def __reset(self) -> None:
         self.input_folder = None
         self.output_folder = None
-        self.scope = "patient"
+        self.content_granularity = "patient"
         self.dicom_structure = "sectra_cdmedia"
         self.dicom_conversion_method = "dcm2niix"
         self.dicom_fully_anonymised = False
-        self.override = False
+        self.dicom_override_existing = False
         self.config_fn = None
         self.user_options = None
         self.identification_domain = "neuro"
         self.identification_status = True
+        self.identification_override_classification = False
+        self.identification_override_selection = False
 
     def __parse_user_options(self):
         cf_key = "Case"
@@ -58,17 +60,12 @@ class OptionsConfiguration:
             if self.user_options[cf_key]['output_folder'].split('#')[0].strip() != '':
                 self.output_folder = self.user_options[cf_key]['output_folder'].split('#')[0].strip()
 
-        cf_key = "Default"
-        if self.user_options.has_option(cf_key, 'scope'):
-            if self.user_options[cf_key]['scope'].split('#')[0].strip() != '':
-                self.scope = self.user_options[cf_key]['scope'].split('#')[0].strip().lower()
-        if self.scope not in ["cohort", "patient", "timepoint", "image"]:
-            raise ValueError(f"The scope with value {self.scope} is not handled! "
+        if self.user_options.has_option(cf_key, 'content_granularity'):
+            if self.user_options[cf_key]['content_granularity'].split('#')[0].strip() != '':
+                self.content_granularity = self.user_options[cf_key]['content_granularity'].split('#')[0].strip().lower()
+        if self.content_granularity not in ["cohort", "patient", "timepoint", "image"]:
+            raise ValueError(f"The content granularity with value {self.content_granularity} is not handled! "
                              f"Please select from [cohort, patient, timepoint, image]!")
-
-        if self.user_options.has_option(cf_key, 'override_existing'):
-            if self.user_options[cf_key]['override_existing'].split('#')[0].strip() != '':
-                self.override = True if self.user_options[cf_key]['override_existing'].split('#')[0].strip().lower() == "true" else False
 
         cf_key = "DICOM"
         if self.user_options.has_option(cf_key, 'structure'):
@@ -86,6 +83,10 @@ class OptionsConfiguration:
         if self.user_options.has_option(cf_key, 'fully_anonymised'):
             if self.user_options[cf_key]['fully_anonymised'].split('#')[0].strip() != '':
                 self.dicom_fully_anonymised = True if self.user_options[cf_key]['fully_anonymised'].split('#')[0].strip().lower() == "true" else False
+                
+        if self.user_options.has_option(cf_key, 'override_existing'):
+            if self.user_options[cf_key]['override_existing'].split('#')[0].strip() != '':
+                self.dicom_override_existing = True if self.user_options[cf_key]['override_existing'].split('#')[0].strip().lower() == "true" else False
 
         cf_key = "Identification"
         if self.user_options.has_option(cf_key, 'domain'):
@@ -97,7 +98,15 @@ class OptionsConfiguration:
         if self.user_options.has_option(cf_key, 'perform'):
             if self.user_options[cf_key]['perform'].split('#')[0].strip() != '':
                 self.identification_status = True if self.user_options[cf_key]['perform'].split('#')[0].strip().lower() == "true" else False
-        
+
+        if self.user_options.has_option(cf_key, 'override_classification'):
+            if self.user_options[cf_key]['override_classification'].split('#')[0].strip() != '':
+                self.identification_override_classification = True if self.user_options[cf_key]['override_classification'].split('#')[0].strip().lower() == "true" else False
+     
+        if self.user_options.has_option(cf_key, 'override_selection'):
+            if self.user_options[cf_key]['override_selection'].split('#')[0].strip() != '':
+                self.identification_override_selection = True if self.user_options[cf_key]['override_selection'].split('#')[0].strip().lower() == "true" else False
+
     def init(self, config_fn: str) -> None:
         try:
             self.config_fn = config_fn

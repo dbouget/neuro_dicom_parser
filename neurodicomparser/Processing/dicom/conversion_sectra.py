@@ -54,7 +54,7 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
     :param output_folder: a DICOM-conv folder is created at the output_folder folder. This new folder will contain
      all converted volumes, along with DICOM metadata in csv files.
     """
-    override = OptionsConfiguration.getInstance().override
+    override = OptionsConfiguration.getInstance().dicom_override_existing
     patient_base_dicom = os.path.join(input_folder, 'DICOM')
     if not os.path.exists(patient_base_dicom):
         print('No existing DICOM folder in {}'.format(input_folder))

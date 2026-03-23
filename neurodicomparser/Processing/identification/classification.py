@@ -38,13 +38,22 @@ def compute_classification(input_filename: str, target_name: str, override: bool
 
     classification_exists = True in [y == os.path.basename(input_filename).split('_Seq')[0] for y in [os.path.basename(x).replace('_sequence_classification_results.csv', '') for x in glob.glob(os.path.join(os.path.dirname(input_filename), "*_sequence_classification_results.csv"), recursive=False)]]
     if override or not classification_exists:
+        if override and classification_exists:
+            # Cleaning the filenames readability
+            raw_base_name = os.path.basename(input_filename).split('_Seq-')[0]
+            curr_meta_file = os.path.join(os.path.dirname(input_filename), 'Meta', os.path.basename(input_filename).replace('.nii.gz', '_metadata.csv'))
+            new_meta_file = os.path.join(os.path.dirname(input_filename), 'Meta', raw_base_name + '_metadata.csv')
+            new_input_file = os.path.join(os.path.dirname(input_filename), raw_base_name + '.nii.gz')
+            shutil.move(src=input_filename, dst=new_input_file)
+            input_filename = new_input_file
+            shutil.move(src=curr_meta_file, dst=new_meta_file)
+
         dest_classification_file = input_filename.replace('.nii.gz', '_sequence_classification_results.csv')
         tmp_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tmp')
         if os.path.exists(tmp_folder):
             shutil.rmtree(tmp_folder)
+        os.makedirs(tmp_folder)
         output_prefix = os.path.join(tmp_folder, 'segmentation')
-        if not os.path.isdir(tmp_folder):
-            os.mkdir(tmp_folder)
 
         surrogate_folder_path = os.path.join(tmp_folder, 'pipeline_input')
         try:
@@ -68,11 +77,6 @@ def compute_classification(input_filename: str, target_name: str, override: bool
             rads_config.set('System', 'output_folder', tmp_folder)
             rads_config.set('System', 'model_folder', os.path.join(os.path.dirname(__file__), "..", "..", "Models"))
             pipeline_filename = os.path.join(tmp_folder, 'rads_pipeline.json')
-            # Option1. Copying directly from the model folder
-            # shutil.copyfile(src=os.path.join(SharedResources.getInstance().raidionics_models_root, model_name, 'pipeline.json'),
-            #                 dst=pipeline_filename)
-            # Option2. Hard-coding for the different use cases.
-            # Actually mandatory in the case of MRI_Brain where the pipeline must be adjusted on the fly to run on multiple sequences...
             pipeline = create_classification_pipeline(model_name)
             with open(pipeline_filename, 'w', newline='\n') as outfile:
                 json.dump(pipeline, outfile, indent=4)

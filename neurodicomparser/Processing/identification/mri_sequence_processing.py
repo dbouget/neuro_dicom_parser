@@ -76,6 +76,11 @@ def sequence_selection_ts(input_folder: str, override: bool = False) -> None:
                 if any(item in os.path.basename(nf).lower() for item in exclusion_list):
                     logging.info(f"Discarded input MR scan {nf} because its name contains an exclusion tag")
                     continue
+                seq_prob = int(re.findall(r'\d+', os.path.basename(nf).split(s)[1])[0])
+                if seq_prob < 90:
+                    logging.info(f"Discarded input MR scan {nf} because the classification probability is too low.")
+                    continue
+
                 nf_nib = nib.load(nf)
                 if not is_image_eligible(image=nf_nib):
                     logging.info(f"Discarded input MR scan {nf} because the image is not eligible")
