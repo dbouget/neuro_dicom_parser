@@ -25,18 +25,17 @@ def run_cohort_patient_sectra_cdmedia(input_folder: str, output_folder: str, con
     """
 
     """
-    patient_list_in_cohort = []
-    for _, dirs, _ in os.walk(input_folder):
-        for dir in dirs:
-            patient_list_in_cohort.append(dir)
-        break
+    patient_list_in_cohort = list_subdirs(input_folder)
 
     for patient_fn in tqdm(patient_list_in_cohort):
         run_single_patient_sectra_cdmedia(input_folder=os.path.join(input_folder, patient_fn),
                                             output_folder=output_folder, conversion_method=conversion_method)
         
 def run_single_patient_sectra_cdmedia(input_folder: str, output_folder: str | None,
-                                        conversion_method: str = "dcm2niix", override: bool = False) -> None:
+                                        conversion_method: str = "dcm2niix") -> None:
+    """
+
+    """
     input_folder = input_folder.rstrip(os.sep)
     converted_folder = os.path.join(output_folder, os.path.basename(input_folder)) if output_folder is not None else input_folder
     if output_folder is None:
@@ -44,9 +43,6 @@ def run_single_patient_sectra_cdmedia(input_folder: str, output_folder: str | No
     unpack_convert_dicom_folder_sectra_cdviewer(input_folder=input_folder, output_folder=converted_folder,
                                                 method=conversion_method)
     identification_process(input_folder=converted_folder)
-    # if OptionsConfiguration.getInstance().identification_status:
-    #     identify_sequences(input_folder=converted_folder, structure="sectra_cdmedia")
-    #     sequence_selection(input_folder=converted_folder)
 
 def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder: str = None,
                                                 method: str = 'dcm2niix') -> None:
@@ -73,10 +69,6 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
     os.makedirs(output_folder, exist_ok=True)
 
     main_dicom_dir = list_subdirs(patient_base_dicom)
-    # for _, dirs, _ in os.walk(patient_base_dicom):
-    #     for name in dirs:
-    #         main_dicom_dir.append(name)
-    #     break
 
     if len(main_dicom_dir) == 0:
         return
@@ -84,10 +76,6 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
     for mdd in main_dicom_dir:
         patient_base_main_dicom = os.path.join(patient_base_dicom, mdd)
         timestamp_dicom_sub_dirs = list_subdirs(patient_base_main_dicom)
-        # for _, dirs, _ in os.walk(patient_base_main_dicom):
-        #     for name in dirs:
-        #         timestamp_dicom_sub_dirs.append(name)
-        #     break
 
         # Iterating over each timestamp
         ts_order = 0
@@ -98,17 +86,9 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
             investigations_for_timestamp = []
             timestamp_base_main_dicom = os.path.join(patient_base_main_dicom, subdir)
             sub_dir = list_subdirs(timestamp_base_main_dicom)
-            # for _, dirs, _ in os.walk(timestamp_base_main_dicom):
-            #     for name in dirs:
-            #         sub_dir.append(name)
-            #     break
 
             timestamp_base_main_dicom = os.path.join(timestamp_base_main_dicom, sub_dir[0])
             investigation_dirs = list_subdirs(timestamp_base_main_dicom)
-            # for _, dirs, _ in os.walk(timestamp_base_main_dicom):
-            #     for name in dirs:
-            #         investigation_dirs.append(name)
-            #     break
 
             # Collecting each investigation for the current patient
             for inv in tqdm(investigation_dirs):
@@ -123,22 +103,18 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
                         reader.LoadPrivateTagsOn()
                         reader.SetMetaDataDictionaryArrayUpdate(True)
                         investigations_for_timestamp.append(reader)
-                        # tmp = reader.Execute()
 
                         # Read metadata from ONE file only — tags are series-level, not slice-level
                         single_ds = pydicom.dcmread(dicom_names[0], stop_before_pixels=True)
                         primary = is_dicom_acquisition_primary(single_ds)
                         date = extract_dicom_date(single_ds)
 
-                        # primary = is_dicom_acquisition_primary(reader)
-                        # date = extract_dicom_date(reader)
                         if date:
                             timestamps.append(date)
                         if primary_date is None and primary and date is not None:
                             primary_date = date
                 except Exception as e:
-                    # print('Patient {}, could not process DICOM'.format(uid))
-                    # print('Collected exception: {}'.format(e.args[0]))
+                    logging.error(f"Collecting metadata for {current_dicom_investigation_path} failed with {e}")
                     continue
 
             if len(timestamps) == 0:
@@ -154,6 +130,6 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
                     execute_and_output_reader(input_folder=input_folder, output_folder=output_folder, 
                                               timestamp=timestamp, reader=reader, method=method)
                 except Exception as e:
-                    print('Collected exception: {}'.format(e.args[0]))
-                    print('{}'.format(traceback.format_exc()))
+                    logging.error(f'Collected exception: {e}')
+                    logging.error(f'{traceback.format_exc()}')
                     continue

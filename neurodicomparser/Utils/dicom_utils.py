@@ -50,7 +50,22 @@ def extract_dicom_date(reader: sitk.ImageSeriesReader | pydicom.Dataset) -> str 
             date = raw_value[:8]  # YYYYMMDD
             break
     elif isinstance(reader, pydicom.Dataset):
-        date = reader["InstanceCreationDate"].value
+        date_dctags = ["InstanceCreationDate", "StudyDate", "SeriesDate", "AcquisitionDate", "ContentDate"]
+        # date_dctags = [
+        # 0x0008, 0x0012,  # Instance Creation Date
+        # 0x0008, 0x0020,  # Study Date
+        # 0x0008, 0x0021,  # Series Date
+        # 0x0008, 0x0022,  # Acquisition Date
+        # 0x0008, 0x0023,  # Content Date
+        # ]
+        date = None
+        for tag in date_dctags:
+            if tag in reader:
+                raw_value = reader[tag].value
+                if not raw_value or raw_value == "":
+                    continue
+                date = raw_value  # YYYYMMDD
+                break
     return date
 
 def build_sequence_readable_name(metatags: dict, input_folder: str) -> str:
@@ -182,7 +197,7 @@ def execute_and_output_reader(input_folder: str, output_folder: str, timestamp: 
     except Exception as e:
         sequence_readable_name = os.path.basename(input_folder)
     sequence_readable_name = sanitize_filename(sequence_readable_name)
-    dump_image_path = os.path.join(output_folder, timestamp, sequence_readable_name + '.nii.gz') if timestamp is not None else os.path.join(output_folder, str(index+1) + '_' + sequence_readable_name + '.nii.gz')
+    dump_image_path = os.path.join(output_folder, timestamp, sequence_readable_name + '.nii.gz') if timestamp is not None else os.path.join(output_folder, sequence_readable_name + '.nii.gz')
 
     if os.path.exists(dump_image_path):
         stem = dump_image_path.replace('.nii.gz', '')

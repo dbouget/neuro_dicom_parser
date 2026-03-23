@@ -36,6 +36,10 @@ def run_parser(config_fn: str) -> None:
 
 
 def run_manual_structure(input_folder: str, output_folder: str, conversion_method: str = "dcm2niix") -> None:
+    """
+    Running DICOM to Nifti conversion for a folder manually put together where the content can be a single DICOM volume, 
+    a set if acquisition for a single date, a set of acquisitions over time, or a set of patient folders.
+    """
     if OptionsConfiguration.getInstance().scope == "patient":
         run_cohort_patient_manual(input_folder=input_folder, output_folder=output_folder,
                                     conversion_method=conversion_method)

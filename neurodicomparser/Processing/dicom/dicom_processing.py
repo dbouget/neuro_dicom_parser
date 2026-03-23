@@ -32,11 +32,10 @@ def run_sectra_cdmedia(input_folder: str, output_folder: str, conversion_method:
                       f' a SECTRA CD Media folder structure. Please select from [cohort, patient].')
         
 def unpack_convert_dicom_patient(input_folder: str, output_folder: str = None, method: str = 'dcm2niix') -> None:
-    timestamp_dirs = []
-    for _, dirs, _ in os.walk(input_folder):
-        for name in dirs:
-            timestamp_dirs.append(name)
-        break
+    """
+    
+    """
+    timestamp_dirs = list_subdirs(input_folder)
 
     # Collecting each investigation for the current patient
     for ts in timestamp_dirs:
@@ -48,38 +47,74 @@ def unpack_convert_dicom_patient(input_folder: str, output_folder: str = None, m
 def unpack_convert_dicom_investigation(input_folder: str, output_folder: str = None, method: str = 'dcm2niix') -> None:
     override = OptionsConfiguration.getInstance().override
     input_folder = os.path.join(input_folder, 'dicom') if os.path.exists(os.path.join(input_folder, 'dicom')) else input_folder
-    investigation_dirs = []
-    for _, dirs, _ in os.walk(input_folder):
-        for name in dirs:
-            investigation_dirs.append(name)
-        break
+    investigation_dirs = list_subdirs(input_folder)
 
-    # Collecting each investigation for the current patient
-    for inv in investigation_dirs:
-        inv_dir = os.path.join(input_folder, inv)
-        inv_output_folder = os.path.join(output_folder, inv)
+    if len(investigation_dirs) == 0 and os.listdir(input_folder) != 0:
+        reconstruct_unstructured_dicom(input_folder=input_folder, output_folder=output_folder, method=method)
+    else:
+        # Collecting each investigation for the current patient
         try:
-            if os.path.exists(inv_output_folder):
-                if not override:
-                    logging.info(f"Skipping extraction - folder already exists at {inv_output_folder}")
+            readers = []
+            timestamps = []
+            primary_date = None
+            for inv in investigation_dirs:
+                inv_dir = os.path.join(input_folder, inv)
+                try:
+                    if OptionsConfiguration.getInstance().dicom_fully_anonymised:
+                        from ...Processing.dicom.conversion_anonymised import reconstruct_raw_dicom
+                        conv_folder = reconstruct_raw_dicom(input_folder=inv_dir, dest_folder=output_folder)
+                        inv_dir = conv_folder
+                        logging.warning("Use-case never tried, must be confirmed: anonymized DICOM, manual patient")
+                    reader = sitk.ImageSeriesReader()
+                    serie_names = reader.GetGDCMSeriesIDs(inv_dir)
+                    for s, serie in enumerate(serie_names):
+                        dicom_names = reader.GetGDCMSeriesFileNames(inv_dir, serie)
+                        reader.SetFileNames(dicom_names)
+                        reader.LoadPrivateTagsOn()
+                        reader.SetMetaDataDictionaryArrayUpdate(True)
+                        readers.append(reader)
+
+                        # Read metadata from ONE file only — tags are series-level, not slice-level
+                        single_ds = pydicom.dcmread(dicom_names[0], stop_before_pixels=True)
+                        primary = is_dicom_acquisition_primary(single_ds)
+                        date = extract_dicom_date(single_ds)
+
+                        if date:
+                            timestamps.append(date)
+                        if primary_date is None and primary and date is not None:
+                            primary_date = date
+                except Exception as e:
+                    logging.error(f"Reading DICOM metadata tags for {inv_dir} failed with:\n {e}")
+                    raise
+            if len(timestamps) == 0:
+                timestamp =  "unknown"
+            elif primary_date is not None:
+                timestamp = primary_date
+            else:
+                counts = Counter(timestamps)
+                timestamp = counts.most_common(1)[0][0]
+            logging.info(f'Inclusion for timestamp: {timestamp}')
+            for r, reader in enumerate(readers):
+                try:
+                    execute_and_output_reader(input_folder=input_folder, output_folder=output_folder, 
+                                            timestamp=timestamp, reader=reader, method=method)
+                except Exception as e:
+                    print('Collected exception: {}'.format(e.args[0]))
+                    print('{}'.format(traceback.format_exc()))
                     continue
-                else:
-                    shutil.rmtree(inv_output_folder)
-            os.makedirs(inv_output_folder)
-            convert_single_dicom_sequence(input_folder=inv_dir, output_folder=inv_output_folder, method=method)
         except Exception as e:
-            if os.path.exists(inv_output_folder) and len(os.listdir(inv_output_folder)) == 0:
-                shutil.rmtree(inv_output_folder)
+            raise
 
 
 def convert_single_dicom_sequence(input_folder: str, output_folder: str = None, method: str = 'dcm2niix') -> None:
     """
+
     """
     try:
         from .conversion_anonymised import reconstruct_raw_dicom
         if OptionsConfiguration.getInstance().dicom_fully_anonymised:
-            reconstruct_raw_dicom(input_folder=input_folder, dest_folder=output_folder)
-            input_folder = output_folder
+            conv_folder = reconstruct_raw_dicom(input_folder=input_folder, dest_folder=output_folder)
+            input_folder = conv_folder
         reconstruct_structured_dicom(input_folder=input_folder, output_folder=output_folder, method=method)
     except Exception as e:
         raise ValueError(f"Single DICOM conversion failed with {e}.")
@@ -91,6 +126,8 @@ def reconstruct_structured_dicom(input_folder: str, output_folder: str, method: 
         # @TODO. assert to make sure there are no other directories inside, only .dcm files
     """
     try:
+        timestamps = []
+        primary_date = None
         override = OptionsConfiguration.getInstance().override
         reader = sitk.ImageSeriesReader()
         serie_names = reader.GetGDCMSeriesIDs(input_folder)
@@ -110,15 +147,31 @@ def reconstruct_structured_dicom(input_folder: str, output_folder: str, method: 
             reader.LoadPrivateTagsOn()
             reader.SetMetaDataDictionaryArrayUpdate(True)
 
-            tmp = reader.Execute()
-            date = datetime.datetime.strptime(reader.GetMetaData(0, '0008|0021')[0:8], '%Y%m%d')
+            # Read metadata from ONE file only — tags are series-level, not slice-level
+            single_ds = pydicom.dcmread(dicom_names[0], stop_before_pixels=True)
+            primary = is_dicom_acquisition_primary(single_ds)
+            date = extract_dicom_date(single_ds)
+
+            if date:
+                timestamps.append(date)
+            if primary_date is None and primary and date is not None:
+                primary_date = date
     except Exception as e:
         logging.error(f"Reading DICOM metadata tags for {input_folder} failed with:\n {e}")
         # print('Patient {}, could not process DICOM'.format(uid))
         # print('Collected exception: {}'.format(e.args[0]))
 
     try:
-        execute_and_output_reader(input_folder=input_folder, output_folder=output_folder, timestamp=None, reader=reader, index=0, method=method)
+        if len(timestamps) == 0:
+            timestamp =  "unknown"
+        elif primary_date is not None:
+            timestamp = primary_date
+        else:
+            counts = Counter(timestamps)
+            timestamp = counts.most_common(1)[0][0]
+        logging.info(f'Inclusion for timestamp: {timestamp}')
+        execute_and_output_reader(input_folder=input_folder, output_folder=output_folder, timestamp=None,
+                                  reader=reader, method=method)
         # image = reader.Execute()
         # existing_dicom_keys = reader.GetMetaDataKeys(0)
         # # metatags = [[k, reader.GetMetaData(0, k)] for k in existing_dicom_keys]
@@ -199,3 +252,92 @@ def reconstruct_structured_dicom(input_folder: str, output_folder: str, method: 
         #     logging.warning(f"DICOM metadata tags with problematic encoding detected in: {input_folder} with {e}")
     except Exception as e:
         logging.error(f"Conversion failed for folder: {input_folder} failed with:\n {e}")
+
+def reconstruct_unstructured_dicom(input_folder: str, output_folder: str, method: str = "dcm2niix") -> None:
+    """
+
+    """
+    tmp_folder = os.path.join(os.path.dirname(output_folder), 'tmp')
+    try:
+        timestamps = []
+        if method == "dcm2niix":     
+            output_filename = os.path.join(tmp_folder, 'correct_CT')
+            if not os.path.isdir(tmp_folder):
+                os.mkdir(tmp_folder)
+            exec_filepath = os.path.join(os.path.dirname(__file__), "..", "..", "MRIcroGL", "Resources", 'dcm2niix')
+            try:
+                subprocess.call(
+                    ["{exec}".format(exec=exec_filepath),
+                        "-o", "{output}".format(output=os.path.dirname(output_filename)),
+                        "-f", "{filename}".format(filename=os.path.basename(output_filename)),
+                        "-z", "y",
+                        "{input}".format(input=input_folder)])
+            except Exception:
+                if os.path.isdir(tmp_folder):
+                    shutil.rmtree(tmp_folder)
+                raise ValueError("DICOM to nifti conversion failed for folder: {}".format(input_folder))  
+            series_map = group_dicoms_by_composite_key(input_folder)
+            for nii_file in sorted(os.listdir(tmp_folder)):
+                if not nii_file.endswith(".nii.gz"):
+                    continue
+                logging.info(f"Nifti file {nii_file}")
+                json_path = os.path.join(tmp_folder, nii_file.replace(".nii.gz", ".json"))
+                if not os.path.exists(json_path):
+                    continue
+
+                with open(json_path) as f:
+                    sidecar = json.load(f)
+
+                key = make_sidecar_key(sidecar)
+                source_files = series_map.get(key, [])
+
+                if not source_files:
+                    print(f"Warning: no DICOMs found for SeriesNumber {key[0]}")
+                    continue
+
+                # Read metadata from ONE file only — tags are series-level, not slice-level
+                single_ds = pydicom.dcmread(source_files[0], stop_before_pixels=True)
+                metatags = {
+                    f"{elem.tag.group:04x}|{elem.tag.element:04x}": 
+                        str(elem.value).encode('utf-8', 'replace').decode('utf-8')
+                    for elem in single_ds if elem.keyword != 'PixelData'
+                }
+
+                primary = is_dicom_acquisition_primary(single_ds)
+                date = extract_dicom_date(single_ds)
+                if primary:
+                    timestamps.append(date)
+                sequence_readable_name = None
+                try:
+                    sequence_readable_name = build_sequence_readable_name(metatags=metatags, input_folder=input_folder)
+                except Exception as e:
+                    sequence_readable_name = os.path.basename(input_folder)
+                sequence_readable_name = sanitize_filename(sequence_readable_name)
+                dump_image_path = os.path.join(output_folder, "Unknown_date", sequence_readable_name + '.nii.gz')
+
+                output_filename = os.path.join(tmp_folder, nii_file)
+                os.makedirs(os.path.dirname(dump_image_path), exist_ok=True)
+                shutil.copyfile(src=output_filename, dst=dump_image_path)
+                metadata_filename = os.path.join(os.path.dirname(dump_image_path), "Meta",
+                                    os.path.basename(dump_image_path).split('.')[0] + '_metadata.csv')
+                os.makedirs(os.path.dirname(metadata_filename), exist_ok=True)
+                pd.DataFrame(list(metatags.items()), columns=['Tag', 'Value']).to_csv(metadata_filename, index=False, encoding='utf-8')
+        else:
+            raise ValueError(f"Must run with dcm2niix, use-case with {method} not implemented yet")
+    except Exception as e:
+        if os.path.exists(tmp_folder):
+            shutil.rmtree(tmp_folder)
+        raise ValueError(f"All in one folder conversion failed with {e}")
+
+    if len(timestamps) != 0:
+        try:
+            counts = Counter(timestamps)
+            timestamp = counts.most_common(1)[0][0]
+            current_dir = os.path.join(output_folder, "Unknown_date")
+            new_dir = os.path.join(output_folder, timestamp)
+            shutil.move(src=current_dir, dst=new_dir)
+        except Exception as e:
+            raise ValueError(f"Moving produced directory to timestamped version failed with {e}")
+
+    if os.path.exists(tmp_folder):
+        shutil.rmtree(tmp_folder)

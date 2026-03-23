@@ -38,7 +38,6 @@ class OptionsConfiguration:
     def __reset(self) -> None:
         self.input_folder = None
         self.output_folder = None
-        self.domain_target = "neuro"
         self.scope = "patient"
         self.dicom_structure = "sectra_cdmedia"
         self.dicom_conversion_method = "dcm2niix"
@@ -60,13 +59,6 @@ class OptionsConfiguration:
                 self.output_folder = self.user_options[cf_key]['output_folder'].split('#')[0].strip()
 
         cf_key = "Default"
-        if self.user_options.has_option(cf_key, 'domain'):
-            if self.user_options[cf_key]['domain'].split('#')[0].strip() != '':
-                self.domain_target = self.user_options[cf_key]['domain'].split('#')[0].strip().lower()
-        if self.domain_target not in ["neuro", "mediastinum"]:
-            raise ValueError(f"The domain with value {self.domain_target} is not handled!"
-                             f"Please select from [neuro, mediastinum]!")
-
         if self.user_options.has_option(cf_key, 'scope'):
             if self.user_options[cf_key]['scope'].split('#')[0].strip() != '':
                 self.scope = self.user_options[cf_key]['scope'].split('#')[0].strip().lower()

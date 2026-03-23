@@ -9,8 +9,11 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 from ...Utils.io_utils import sanitize_filename
 
 
-def reconstruct_raw_dicom(input_folder, dest_folder):
+def reconstruct_raw_dicom(input_folder: str | os.PathLike, dest_folder: str | os.PathLike) -> str | os.PathLike:
     """
+
+    For a fully anonymised DICOM folder, where even the InstanceSeriesUIDs have been randomized, the ordering of each dcm file has to 
+    be identified and proper UIDs generated.
 
     :param input_folder:
     :param dest_folder:
@@ -52,7 +55,7 @@ def reconstruct_raw_dicom(input_folder, dest_folder):
         curr_dest_folder = os.path.join(dest_folder, sequence_readable_name)
         if os.path.exists(curr_dest_folder):
             logging.info("Already converted, skipping.")
-            return
+            return curr_dest_folder
 
         # -------------------------------
         # 2. Compute slice normal and sort slices along it
@@ -159,3 +162,5 @@ def reconstruct_raw_dicom(input_folder, dest_folder):
     except Exception as e:
         logging.error(f"Conversion failed for folder: {input_folder} failed with:\n {e}")
         raise ValueError(f"{e}")
+
+    return curr_dest_folder
