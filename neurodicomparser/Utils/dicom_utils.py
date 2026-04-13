@@ -1,5 +1,6 @@
 import re
 import os
+from typing import Tuple
 from collections import defaultdict
 import pydicom
 import SimpleITK as sitk
@@ -8,9 +9,25 @@ import shutil
 import json
 import subprocess
 import random
+import numpy as np
 import pydicom
+from pathlib import Path
+import nibabel as nib
 from ..Utils.io_utils import sanitize_filename
 
+
+def is_dicom_readable(reader: pydicom.dataset) -> Tuple[bool, str]:
+    syntax_uid = reader.file_meta.TransferSyntaxUID
+    msg = ""
+    status = True
+    if syntax_uid == '1.2.752.24.3.7.7':
+        status = False
+        msg = "Transfer syntax issue: SECTRA proprietary"
+    elif syntax_uid == '1.2.840.10008.1.2.5':
+        status = False
+        msg = "Transfer syntax issue: RLE Lossless (run-length encoding)"
+
+    return status, msg
 
 def is_dicom_acquisition_primary(reader: sitk.ImageSeriesReader | pydicom.Dataset) -> bool:
     """
@@ -24,6 +41,18 @@ def is_dicom_acquisition_primary(reader: sitk.ImageSeriesReader | pydicom.Datase
     elif isinstance(reader, pydicom.Dataset):
         result = reader["ImageType"][0].lower() == 'original'
     return result
+
+def collect_dicom_metadata(input: str | os.PathLike) -> dict:
+    ds = pydicom.dcmread(input, stop_before_pixels=True)
+
+    # Build metatags dict from pydicom dataset
+    metatags = {
+        f"{elem.tag.group:04x}|{elem.tag.element:04x}": 
+            str(elem.value).encode('utf-8', 'replace').decode('utf-8')
+        for elem in ds
+        if elem.keyword != 'PixelData'
+    }
+    return metatags
 
 def extract_dicom_date(reader: sitk.ImageSeriesReader | pydicom.Dataset) -> str | None:
     """
@@ -166,6 +195,8 @@ def execute_and_output_reader(input_folder: str, output_folder: str, timestamp: 
                               method: str = "dcm2nii"):
     """
 
+    The cases of multiple outputs from dcm2niix should be better handled in the future!
+
     Parameters
     ----------
 
@@ -190,10 +221,6 @@ def execute_and_output_reader(input_folder: str, output_folder: str, timestamp: 
     sequence_readable_name = None
     try:
         sequence_readable_name = build_sequence_readable_name(metatags=metatags, input_folder=input_folder)
-        # sequence_readable_name = os.path.basename(input_folder) + '_' + metatags.get('0020|0011', '')
-        # for tag in ['0008|0008', '0008|103e', '0008|1030', '0018|0050', '0018|0081', '0018|1030', '0040|0007']:
-        #     if tag in metatags:
-        #         sequence_readable_name += '_' + metatags[tag]
     except Exception as e:
         sequence_readable_name = os.path.basename(input_folder)
     sequence_readable_name = sanitize_filename(sequence_readable_name)
@@ -234,58 +261,61 @@ def execute_and_output_reader(input_folder: str, output_folder: str, timestamp: 
         volumes = classify_dcm2niix_outputs(tmp_folder)
 
         for stem, vol in volumes.items():
-            if vol["nii"] is None or vol["json"] is None:
-                continue  # skip derived-only entries with no parent found
+            try:
+                if vol["nii"] is None or vol["json"] is None:
+                    continue  # skip derived-only entries with no parent found
 
-            with open(os.path.join(tmp_folder, vol["json"])) as f:
-                sidecar = json.load(f)
+                with open(os.path.join(tmp_folder, vol["json"])) as f:
+                    sidecar = json.load(f)
 
-            # DICOM tag lookup only on the primary volume
-            key = make_sidecar_key(sidecar)
-            source_files = series_map.get(key, [])
+                # DICOM tag lookup only on the primary volume
+                key = make_sidecar_key(sidecar)
+                source_files = series_map.get(key, [])
 
-            if not source_files:
-                print(f"Warning: no DICOMs matched for {stem}")
-                continue
+                if not source_files:
+                    print(f"Warning: no DICOMs matched for {stem}")
+                    continue
 
-        output_filename = os.path.join(tmp_folder, vol["nii"])
-        shutil.move(src=output_filename, dst=dump_image_path)
-        # Can be infered afterwards anyways if needed from the saved image
-        # for dv in vol["derived"]:
-        #     derived_dst_folder = os.path.join(os.path.dirname(dump_image_path), "derived", os.path.basename(dump_image_path).replace('.nii.gz', ''))
-        #     os.makedirs(derived_dst_folder, exist_ok=True)
-        #     for dvk in list(dv.keys()):
-        #         shutil.move(src=os.path.join(tmp_folder, vol["derived"][dvk]), dst=os.path.join(derived_dst_folder, os.path.basename(dump_image_path).replace('.nii.gz', '') + dvk + '.nii.gz'))
+                metatags = collect_dicom_metadata(input=source_files[0])
+                # # Derive a per-volume output path from the stem suffix dcm2niix appended
+                # # e.g. "recon_e1", "recon_e2" → append that suffix to the base dump path
+                # base = dump_image_path.replace('.nii.gz', '')
+                # stem_suffix = stem.replace('recon', '')  # e.g. "", "_e1", "_e2"
+                # vol_dump_path = f"{base}{stem_suffix}.nii.gz"
+                sequence_readable_name = build_sequence_readable_name(metatags=metatags, input_folder=input_folder)
+                sequence_readable_name = sanitize_filename(sequence_readable_name)
+                vol_dump_path = os.path.join(output_folder, timestamp, sequence_readable_name + '.nii.gz') if timestamp is not None else os.path.join(output_folder, sequence_readable_name + '.nii.gz')
+                base = vol_dump_path.replace('.nii.gz', '')
+                extra_dump = True
+                output_filename = os.path.join(tmp_folder, vol["nii"])
+                # Handle collision
+                if os.path.exists(vol_dump_path):
+                    if Path(vol_dump_path).stat().st_size == Path(output_filename).stat().st_size:
+                        if np.sum(nib.load(vol_dump_path).get_fdata()[:] - nib.load(output_filename).get_fdata()[:]) == 0:
+                            extra_dump = False
+                    counter = 1
+                    while os.path.exists(vol_dump_path):
+                        vol_dump_path = f"{base}_{counter}.nii.gz"
+                        if os.path.exists(vol_dump_path) and Path(vol_dump_path).stat().st_size == Path(output_filename).stat().st_size:
+                            if np.allclose(nib.load(vol_dump_path).get_fdata()[:], nib.load(output_filename).get_fdata()[:]):
+                                extra_dump = False
+                                break
+                        counter += 1
+                if extra_dump:
+                    shutil.move(src=output_filename, dst=vol_dump_path)
+
+                meta_dump_path = os.path.join(os.path.dirname(vol_dump_path), 'Meta',
+                                                os.path.basename(vol_dump_path).split('.')[0] + '_metadata.csv')
+                os.makedirs(os.path.dirname(meta_dump_path), exist_ok=True)
+                pd.DataFrame(list(metatags.items()), columns=['Tag', 'Value']).to_csv(meta_dump_path, index=False, encoding='utf-8')
+            except Exception as e:
+                raise
+
+            # Can be infered afterwards anyways if needed from the saved image
+            # for dv in vol["derived"]:
+            #     derived_dst_folder = os.path.join(os.path.dirname(dump_image_path), "derived", os.path.basename(dump_image_path).replace('.nii.gz', ''))
+            #     os.makedirs(derived_dst_folder, exist_ok=True)
+            #     for dvk in list(dv.keys()):
+            #         shutil.move(src=os.path.join(tmp_folder, vol["derived"][dvk]), dst=os.path.join(derived_dst_folder, os.path.basename(dump_image_path).replace('.nii.gz', '') + dvk + '.nii.gz'))
         if os.path.isdir(tmp_folder):
             shutil.rmtree(tmp_folder)
-
-        # created_filename = None
-        # """
-        # If/when multiple files are combined (e.g., one localizer and one scan), then multiple outputs
-        # would be produced. Might be interesting to parse and save both, each with its proper name.
-        # """
-        # for _, _, files in os.walk(tmp_folder):
-        #     for f in files:
-        #         if f.split('.')[-1] == 'gz':
-        #             created_filename = f
-        #     break
-
-        # if created_filename is None:
-        #     if os.path.isdir(tmp_folder):
-        #         shutil.rmtree(tmp_folder)
-        #     continue
-
-        # output_filename = os.path.join(tmp_folder, created_filename)
-        # shutil.move(src=output_filename, dst=dump_image_path)
-        # if os.path.isdir(tmp_folder):
-        #     shutil.rmtree(tmp_folder)
-    try:
-        meta_dump_path = os.path.join(os.path.dirname(dump_image_path), 'Meta',
-                                        os.path.basename(dump_image_path).split('.')[0] + '_metadata.csv')
-        os.makedirs(os.path.dirname(meta_dump_path), exist_ok=True)
-        pd.DataFrame(list(metatags.items()), columns=['Tag', 'Value']).to_csv(meta_dump_path, index=False, encoding='utf-8')
-    except Exception as e:
-        # Some fields in the metadata have a weird encoding....
-        # metatags = [[k, str.encode(reader.GetMetaData(0, k)).decode('utf8', 'surrogateescape')] for k in
-        #             existing_dicom_keys]
-        raise

@@ -72,6 +72,13 @@ def unpack_convert_dicom_investigation(input_folder: str, output_folder: str = N
                         logging.warning("Use-case never tried, must be confirmed: anonymized DICOM, manual patient")
                     reader = sitk.ImageSeriesReader()
                     serie_names = reader.GetGDCMSeriesIDs(inv_dir)
+                    if len(serie_names) == 0:
+                        inv_dir_content = os.listdir(inv_dir)
+                        if len(inv_dir_content) != 0:
+                            single_ds = pydicom.dcmread(os.path.join(inv_dir, inv_dir_content[0]), stop_before_pixels=True)
+                            status, msg = is_dicom_readable(reader=single_ds)
+                            if not status:
+                                logging.warning(f"{inv_dir} has content which cannot be read - {msg}")
                     for s, serie in enumerate(serie_names):
                         dicom_names = reader.GetGDCMSeriesFileNames(inv_dir, serie)
                         reader.SetFileNames(dicom_names)
@@ -145,7 +152,13 @@ def reconstruct_structured_dicom(input_folder: str, output_folder: str, method: 
         #     dicom_names_set = [[str(x) for x in tmp_dicom_names[:len(dicom_names)]],
         #                        [str(x) for x in tmp_dicom_names[len(dicom_names):]]]
         #     print('Nested images into one DICOM sub-folder......')
-
+        if len(serie_names) == 0:
+            inv_dir_content = os.listdir(input_folder)
+            if len(inv_dir_content) != 0:
+                single_ds = pydicom.dcmread(os.path.join(input_folder, inv_dir_content[0]), stop_before_pixels=True)
+                status, msg = is_dicom_readable(reader=single_ds)
+                if not status:
+                    logging.warning(f"{input_folder} has content which cannot be read - {msg}")
         for s, serie in enumerate(serie_names):
             dicom_names = reader.GetGDCMSeriesFileNames(input_folder, serie)
             reader.SetFileNames(dicom_names)
