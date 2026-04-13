@@ -13,7 +13,7 @@ import numpy as np
 import pydicom
 from pathlib import Path
 import nibabel as nib
-from ..Utils.io_utils import sanitize_filename
+from ..Utils.io_utils import sanitize_filename, sanitize_to_list
 
 
 def is_dicom_readable(reader: pydicom.dataset) -> Tuple[bool, str]:
@@ -131,11 +131,16 @@ def build_sequence_readable_name(metatags: dict, input_folder: str) -> str:
 
 def make_sidecar_key(sidecar):
     iop = [round(float(v)) for v in sidecar.get("ImageOrientationPatientDICOM", [])]
+    ck_list = sanitize_to_list(sidecar.get("ConvolutionKernel", ""))
+    try:
+        ck = str(ck_list) if len(ck_list) >  1 else str(ck_list[0])
+    except:
+        ck = ''
     return (
         str(sidecar.get("SeriesNumber", "")).strip(),
         str(sidecar.get("SeriesDescription", "")).strip(),
         tuple(iop),
-        str(sidecar.get("ConvolutionKernel", "")).strip(),
+        ck,
     )
 
 def make_dicom_key(ds):
