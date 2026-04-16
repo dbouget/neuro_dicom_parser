@@ -3,6 +3,16 @@ import logging
 import os
 import sys
 
+"""
+Expected total bytes to be an even multiple of bytes per value. Instead received b'1.101 ' with length 6 and struct format 'd' which corresponds to 
+bytes per value of 8. This occurred while trying to parse (01F1,1026) according to VR 'UN'. Setting VR to 'UN'.
+
+This error occurs in pydicom because the private tag (01F1, 1026), which is often used by ELSCINT1 (Philips/Marconi), is being incorrectly parsed as
+a double-precision float (FD, which requires 8-byte increments) instead of its actual intended type.
+"""
+import pydicom
+pydicom.config.convert_wrong_length_to_UN = True
+
 from tqdm import tqdm
 from .Processing.dicom.dicom_processing import run_sectra_cdmedia
 from .Processing.dicom.conversion_custom import run_cohort_patient_manual, run_single_patient_manual, run_single_timepoint_manual, run_single_image_manual

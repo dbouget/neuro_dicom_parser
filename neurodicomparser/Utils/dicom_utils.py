@@ -7,9 +7,11 @@ import SimpleITK as sitk
 import pandas as pd
 import shutil
 import json
+import logging
 import subprocess
 import random
 import numpy as np
+import ast
 import pydicom
 from pathlib import Path
 import nibabel as nib
@@ -20,12 +22,15 @@ def is_dicom_readable(reader: pydicom.dataset) -> Tuple[bool, str]:
     syntax_uid = reader.file_meta.TransferSyntaxUID
     msg = ""
     status = True
-    if syntax_uid == '1.2.752.24.3.7.7':
+    if syntax_uid in ['1.2.752.24.3.7.6', '1.2.752.24.3.7.7']:
         status = False
         msg = "Transfer syntax issue: SECTRA proprietary"
     elif syntax_uid == '1.2.840.10008.1.2.5':
         status = False
         msg = "Transfer syntax issue: RLE Lossless (run-length encoding)"
+    elif syntax_uid == '1.2.840.10008.1.2.4.51':
+        status = False
+        msg = "JPEG-Lossy (Processes 2 and 4)"
 
     return status, msg
 
@@ -39,7 +44,10 @@ def is_dicom_acquisition_primary(reader: sitk.ImageSeriesReader | pydicom.Datase
         if '0008|0008' in dc_keys:
             result = re.split(r'\\+', reader.GetMetaData(0, '0008|0008'))[0].lower() == 'original'
     elif isinstance(reader, pydicom.Dataset):
-        result = reader["ImageType"][0].lower() == 'original'
+        try:
+            result = reader["ImageType"][0].lower() == 'original'
+        except Exception as e:
+            logging.warning("ImageType DICOM tag ([0008, 0008]) missing from fields -- skipping")
     return result
 
 def collect_dicom_metadata(input: str | os.PathLike) -> dict:
@@ -277,6 +285,16 @@ def execute_and_output_reader(input_folder: str, output_folder: str, timestamp: 
                 key = make_sidecar_key(sidecar)
                 source_files = series_map.get(key, [])
 
+                if not source_files:
+                    # Sometimes the last element is a list as a string (with []), sometimes as a regular list...
+                    test_key = (key[0], key[1], key[2], ','.join(key[3]))
+                    source_files = series_map.get(test_key, [])
+                    if not source_files:
+                        try:
+                            test_key = (key[0], key[1], key[2], '_'.join(ast.literal_eval(key[3])))
+                            source_files = series_map.get(test_key, [])
+                        except:
+                            continue
                 if not source_files:
                     print(f"Warning: no DICOMs matched for {stem}")
                     continue
