@@ -118,7 +118,7 @@ def unpack_convert_dicom_folder_sectra_cdviewer(input_folder: str, output_folder
                     continue
 
             if len(timestamps) == 0:
-                timestamp =  "unknown" + str(ts_order)
+                timestamp =  f"visit_{ts_order:03d}"
             elif primary_date is not None:
                 timestamp = primary_date
             else:

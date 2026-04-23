@@ -31,3 +31,16 @@ def sanitize_to_list(value):
         return [str(v).strip() for v in value]
     else:
         return [v for v in re.split(r'[^A-Za-z0-9]+', str(value).strip()) if v]
+    
+def next_visit_order(base_dir: str) -> int:
+    """
+    Scans base_dir for folders matching 'visit_NNN' and returns the next available integer.
+    """
+    pattern = re.compile(r"^visit_(\d{3})$")
+    existing = [
+        int(m.group(1))
+        for name in os.listdir(base_dir)
+        if os.path.isdir(os.path.join(base_dir, name))
+        and (m := pattern.match(name))
+    ]
+    return max(existing, default=0) + 1

@@ -99,7 +99,7 @@ def unpack_convert_dicom_investigation(input_folder: str, output_folder: str = N
                     logging.error(f"Reading DICOM metadata tags for {inv_dir} failed with:\n {e}")
                     raise
             if len(timestamps) == 0:
-                timestamp =  "unknown"
+                timestamp =  f"visit_{next_visit_order(output_folder):03d}"
             elif primary_date is not None:
                 timestamp = primary_date
             else:
