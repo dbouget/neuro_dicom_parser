@@ -135,12 +135,12 @@ def convert_single_dicom_sequence(input_folder: str, output_folder: str = None, 
 
 def reconstruct_structured_dicom(input_folder: str, output_folder: str, method: str = "dcm2niix") -> None:
     """
-        # @TODO. assert to make sure there are no other directories inside, only .dcm files
+    # @TODO. assert to make sure there are no other directories inside, only .dcm files
     """
     try:
         timestamps = []
         primary_date = None
-        override = OptionsConfiguration.getInstance().override
+        override = OptionsConfiguration.getInstance().dicom_override_existing
         reader = sitk.ImageSeriesReader()
         serie_names = reader.GetGDCMSeriesIDs(input_folder)
 
